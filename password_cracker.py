@@ -17,6 +17,51 @@ import re
 import gzip
 import pickle
 
+# ─── Profanity Filter ────────────────────────────────────────────────────────
+_LEET_NORMALIZE = str.maketrans({
+    '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's',
+    '6': 'g', '7': 't', '8': 'b', '9': 'g', '@': 'a',
+    '$': 's', '!': 'i', '+': 't', '|': 'i',
+})
+
+def _normalize_for_profanity(text):
+    """Lowercase + decode leet-speak so filters catch variants like f4ck, sh1t."""
+    return text.lower().translate(_LEET_NORMALIZE)
+
+def _profanity_candidates(text):
+    """
+    Generate multiple forms of the password to maximize detection:
+    - raw text
+    - leet-normalized
+    - only-alpha chars extracted (strips digits/symbols surrounding words)
+    - space-separated alpha tokens from leet-normalized
+    """
+    raw = text.lower()
+    normalized = _normalize_for_profanity(text)
+    # Extract only alpha sequences (catches "fuck123" → "fuck")
+    alpha_only = " ".join(re.findall(r'[a-z]+', raw))
+    alpha_norm  = " ".join(re.findall(r'[a-z]+', normalized))
+    return {raw, normalized, alpha_only, alpha_norm}
+
+try:
+    from better_profanity import profanity as _profanity_checker
+    _profanity_checker.load_censor_words()
+    def _contains_profanity(text):
+        return any(_profanity_checker.contains_profanity(v)
+                   for v in _profanity_candidates(text))
+except ImportError:
+    _PROFANITY_FALLBACK = {
+        "fuck", "shit", "ass", "bitch", "cunt", "dick", "cock", "pussy",
+        "bastard", "damn", "crap", "piss", "slut", "whore", "nigger",
+        "faggot", "retard", "twat", "wank", "bollocks",
+    }
+    def _contains_profanity(text):
+        for variant in _profanity_candidates(text):
+            words = re.findall(r'[a-z]+', variant)
+            if any(w in _PROFANITY_FALLBACK for w in words):
+                return True
+        return False
+
 # ─── Palette ─────────────────────────────────────────────────────────────────
 
 C = {
@@ -728,6 +773,8 @@ class PasswordCrackerApp:
 
         if length == 0:
             self.live_strength.config(text="", fg=C["dim"])
+        elif _contains_profanity(pw):
+            self.live_strength.config(text="⚠ INAPPROPRIATE", fg=C["red"])
         else:
             secs, _, _ = estimate_crack_time(pw)
             label, color, _, _ = get_strength_tier(secs)
@@ -739,6 +786,20 @@ class PasswordCrackerApp:
         pw = self.password_var.get()
         if not pw:
             self.status_label.config(text="Enter a password first!", fg=C["orange"])
+            return
+        if _contains_profanity(pw):
+            self.status_label.config(
+                text="⚠  Inappropriate language is not allowed. Please choose a different password.",
+                fg=C["red"])
+            self.verdict_label.config(text="NOT ALLOWED", fg=C["red"])
+            self.time_label.config(text="", fg=C["dim"])
+            self.message_label.config(
+                text="This app is for everyone — please keep it clean! 😊",
+                fg=C["white"])
+            self.tip_label.config(
+                text="Tip: A strong password doesn't need bad words. Try mixing words, numbers, and symbols!",
+                fg=C["yellow"])
+            self.clear_meter()
             return
         if self.cracking:
             return
