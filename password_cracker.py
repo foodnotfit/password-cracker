@@ -12,35 +12,10 @@ import string
 import math
 import time
 import threading
+import os
 import re
 import gzip
 import pickle
-import os
-
-# ─── Wordlist Loader ─────────────────────────────────────────────────────────
-
-def _load_wordlists():
-    """
-    Load combined wordlist from compressed pkl.gz if present.
-    Falls back to empty set (hardcoded lists still apply).
-    Returns (common_passwords_set, common_words_set).
-    """
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    pkl_path = os.path.join(script_dir, "wordlists", "combined.pkl.gz")
-    if os.path.exists(pkl_path):
-        try:
-            with gzip.open(pkl_path, "rb") as f:
-                all_words = pickle.load(f)
-            # Words ≤ 3 chars are rarely passwords on their own — keep in common_words only
-            # Split: shorter/common patterns go to common_passwords, rest to common_words
-            common_pw = {w for w in all_words if len(w) <= 20}
-            common_words = all_words  # full set for dictionary detection
-            return common_pw, common_words
-        except Exception:
-            pass
-    return set(), set()
-
-_LOADED_COMMON_PASSWORDS, _LOADED_COMMON_WORDS = _load_wordlists()
 
 # ─── Palette ─────────────────────────────────────────────────────────────────
 
@@ -110,8 +85,6 @@ COMMON_PASSWORDS = {
     "131313", "abcabc", "abcdef", "qazwsx", "qwerty123", "password123",
     "iloveu", "fuckyou", "asshole", "pussy", "money",
 }
-# Merge in loaded wordlists (65k+ entries from rockyou + SecLists + google-10k)
-COMMON_PASSWORDS |= _LOADED_COMMON_PASSWORDS
 
 # ─── Keyboard walk patterns ─────────────────────────────────────────────
 
@@ -204,11 +177,72 @@ COMMON_WORDS = {
     "hacker", "coder", "gaming", "player", "winner", "loser", "champion",
     "correct", "horse", "battery", "staple", "troubador", "electric",
 }
-# Merge loaded wordlists into COMMON_WORDS for richer dictionary detection
-COMMON_WORDS |= _LOADED_COMMON_WORDS
 
-# Update DICTIONARY_SIZE to reflect actual loaded set
-DICTIONARY_SIZE = max(200_000, len(COMMON_WORDS))
+
+# ─── Rainbow Table Loader ────────────────────────────────────────────────
+# Loads external wordlists from files next to this script.
+# Falls back to the hardcoded sets above if files aren't found.
+
+def _load_rainbow_table(filename, fallback_set):
+    """Load a wordlist file into a set. Returns fallback_set if file not found."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    filepath = os.path.join(script_dir, filename)
+    if not os.path.exists(filepath):
+        return fallback_set
+    loaded = set()
+    with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            word = line.strip().lower()
+            if word:
+                loaded.add(word)
+    # Merge with the hardcoded fallback so we never lose built-in entries
+    loaded.update(fallback_set)
+    return loaded
+
+
+# Load expanded tables (files are optional — game works without them)
+COMMON_PASSWORDS = _load_rainbow_table("rainbow_passwords.txt", COMMON_PASSWORDS)
+COMMON_WORDS     = _load_rainbow_table("rainbow_words.txt", COMMON_WORDS)
+
+# Update the dictionary size constant to match actual loaded size
+DICTIONARY_SIZE = max(DICTIONARY_SIZE, len(COMMON_WORDS))
+
+# Print stats at startup (visible in terminal)
+_pw_count = len(COMMON_PASSWORDS)
+_wd_count = len(COMMON_WORDS)
+print(f"[Rainbow Tables] Loaded {_pw_count:,} passwords + {_wd_count:,} dictionary words")
+if _pw_count > 5000:
+    print(f"[Rainbow Tables] Enhanced mode: rainbow_passwords.txt loaded!")
+if _wd_count > 5000:
+    print(f"[Rainbow Tables] Enhanced mode: rainbow_words.txt loaded!")
+
+# ─── Compressed Wordlist Loader (pkl.gz) ────────────────────────────────────
+# Loads combined.pkl.gz (SecLists + RockyYou + Google-10k = 65k entries)
+# and merges into the existing sets for richer dictionary detection.
+
+def _load_pkl_wordlists():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    pkl_path = os.path.join(script_dir, "wordlists", "combined.pkl.gz")
+    if not os.path.exists(pkl_path):
+        return set(), set()
+    try:
+        with gzip.open(pkl_path, "rb") as f:
+            all_words = pickle.load(f)
+        pws  = {w for w in all_words if 2 < len(w) <= 20}
+        words = all_words
+        print(f"[Wordlist] Loaded {len(pws):,} passwords + {len(words):,} words from combined.pkl.gz")
+        return pws, words
+    except Exception as e:
+        print(f"[Wordlist] Failed to load combined.pkl.gz: {e}")
+        return set(), set()
+
+_pkl_passwords, _pkl_words = _load_pkl_wordlists()
+COMMON_PASSWORDS |= _pkl_passwords
+COMMON_WORDS     |= _pkl_words
+DICTIONARY_SIZE   = max(DICTIONARY_SIZE, len(COMMON_WORDS))
+_pw_count  = len(COMMON_PASSWORDS)
+_wd_count  = len(COMMON_WORDS)
+print(f"[Wordlist] Final: {_pw_count:,} passwords, {_wd_count:,} dictionary words")
 
 
 def _deleet(password):
@@ -510,6 +544,16 @@ class PasswordCrackerApp:
         tk.Label(header, text="Enter a password and watch me try to crack it!",
                  font=("Helvetica", 13), fg=C["dim"], bg=C["bg2"]).pack()
 
+        # Rainbow table status indicator
+        if _pw_count > 5000:
+            rt_text = f"RAINBOW TABLE LOADED: {_pw_count:,} passwords + {_wd_count:,} words"
+            rt_color = C["green"]
+        else:
+            rt_text = f"Basic mode: {_pw_count:,} passwords (add rainbow_passwords.txt for more!)"
+            rt_color = C["yellow"]
+        tk.Label(header, text=rt_text, font=("Courier", 10),
+                 fg=rt_color, bg=C["bg2"]).pack()
+
         # ── INPUT SECTION ──
         input_section = tk.Frame(self.root, bg=C["bg"], pady=20)
         input_section.pack(fill="x", padx=40)
@@ -570,6 +614,21 @@ class PasswordCrackerApp:
         # ── CRACKING ANIMATION AREA ──
         self.anim_frame = tk.Frame(self.root, bg=C["bg"])
         self.anim_frame.pack(fill="both", expand=True, padx=40, pady=(0, 5))
+
+        # ── RAINBOW TABLE CRAWL SECTION ──
+        rt_header = tk.Frame(self.anim_frame, bg=C["bg"])
+        rt_header.pack(fill="x")
+        tk.Label(rt_header, text="RAINBOW TABLE LOOKUP",
+                 font=("Courier", 10, "bold"), fg=C["purple"], bg=C["bg"]).pack(side="left")
+        self.rt_status_label = tk.Label(rt_header, text="",
+                 font=("Courier", 10), fg=C["dim"], bg=C["bg"])
+        self.rt_status_label.pack(side="left", padx=(10, 0))
+
+        self.rt_canvas = tk.Canvas(self.anim_frame, bg=C["bg"],
+                                    highlightthickness=1,
+                                    highlightbackground=C["border"],
+                                    height=55)
+        self.rt_canvas.pack(fill="x", pady=(2, 6))
 
         # Matrix-style cracking display
         self.crack_canvas = tk.Canvas(self.anim_frame, bg=C["bg"],
@@ -702,23 +761,23 @@ class PasswordCrackerApp:
 
         # Map method to human-readable attack label
         method_labels = {
-            "common":            "credential stuffing (known password list)",
-            "pattern":           "pattern attack (repeated chars)",
-            "keyboard_walk":     "keyboard pattern attack",
-            "sequential":        "sequential pattern attack",
-            "leet_common":       "leet-speak variant of known password",
-            "common_variant":    "dictionary + appended digits/symbols",
-            "dictionary_variant":"dictionary + rule-based mutations",
-            "leet_dictionary":   "leet-speak dictionary attack",
-            "multi_word":        "multi-word combination attack",
-            "pin":               "numeric brute-force",
-            "brute_force":       "full brute-force",
+            "common":             "credential stuffing (known password list)",
+            "pattern":            "pattern attack (repeated chars)",
+            "keyboard_walk":      "keyboard pattern attack",
+            "sequential":         "sequential pattern attack",
+            "leet_common":        "leet-speak variant of known password",
+            "common_variant":     "dictionary + appended digits/symbols",
+            "dictionary_variant": "dictionary + rule-based mutations",
+            "leet_dictionary":    "leet-speak dictionary attack",
+            "multi_word":         "multi-word combination attack",
+            "pin":                "numeric brute-force",
+            "brute_force":        "full brute-force",
         }
         attack_label = method_labels.get(method, "brute-force")
 
         # Decide animation duration (real-time visual, capped for fun)
         if crack_seconds < 1:
-            anim_duration = max(0.5, crack_seconds * 2)  # very fast
+            anim_duration = max(0.5, crack_seconds * 2)
         elif crack_seconds < 3600:
             anim_duration = min(4.0, 1.5 + math.log10(max(crack_seconds, 1)))
         else:
@@ -726,14 +785,118 @@ class PasswordCrackerApp:
 
         is_timeout = crack_seconds > 3600  # Will "give up" for strong passwords
 
-        # Run animation in a thread to keep UI responsive
+        # Kick off rainbow table phase first, then crack animation
         thread = threading.Thread(
-            target=self.run_crack_animation,
+            target=self.run_rainbow_then_crack,
             args=(pw, anim_duration, crack_seconds, charset_size,
                   is_timeout, strength_label, strength_color, message, tip,
-                  attack_label),
+                  attack_label, method),
             daemon=True)
         thread.start()
+
+    def run_rainbow_then_crack(self, password, anim_duration, crack_seconds,
+                               charset_size, is_timeout, strength_label,
+                               strength_color, message, tip, attack_label, method):
+        """Phase 1: Rainbow table crawl animation. Phase 2: crack animation."""
+        # ── Rainbow Table Phase (1.2s fixed) ──
+        rt_duration = 1.2
+        rt_start = time.time()
+        pw_lower = password.lower()
+        found_in_rt = method in ("common", "leet_common", "pattern",
+                                  "keyboard_walk", "sequential")
+
+        # Build a pool of fake "table entries" scrolling past
+        rt_pool = list(COMMON_PASSWORDS)
+        random.shuffle(rt_pool)
+        rt_pool = rt_pool[:300] if len(rt_pool) > 300 else rt_pool
+        rt_idx = [0]
+
+        while time.time() - rt_start < rt_duration and not self.cancel_crack:
+            elapsed = time.time() - rt_start
+            progress = elapsed / rt_duration
+
+            # Grab a window of entries to display
+            visible = 8
+            start_i = rt_idx[0] % max(1, len(rt_pool))
+            window = [rt_pool[(start_i + i) % len(rt_pool)] for i in range(visible)]
+            rt_idx[0] += 3
+
+            # At 85%+ of time, if found, freeze on the password
+            highlight_idx = -1
+            if found_in_rt and progress > 0.82:
+                window[visible // 2] = pw_lower
+                highlight_idx = visible // 2
+
+            status = (f"Scanning {_pw_count:,} entries... "
+                      f"{int(progress * _pw_count):,} checked")
+            self.root.after(0, self.update_rt_display,
+                            window, highlight_idx, progress, status, found_in_rt)
+            time.sleep(0.06)
+
+        # Final RT frame
+        if found_in_rt:
+            final_window = [rt_pool[i % len(rt_pool)] for i in range(3)]
+            final_window += [f">>> {pw_lower} <<<"]
+            final_window += [rt_pool[(3 + i) % len(rt_pool)] for i in range(4)]
+            self.root.after(0, self.update_rt_display,
+                            final_window, 3, 1.0, f"MATCH FOUND: '{pw_lower}'", True)
+        else:
+            self.root.after(0, self.update_rt_display,
+                            [], -1, 1.0, f"No match — escalating to dictionary attack...", False)
+
+        time.sleep(0.3)
+
+        # ── Phase 2: Standard crack animation ──
+        self.run_crack_animation(password, anim_duration, crack_seconds,
+                                  charset_size, is_timeout, strength_label,
+                                  strength_color, message, tip, attack_label)
+
+    def update_rt_display(self, entries, highlight_idx, progress, status, found):
+        """Animate the rainbow table scrolling lookup panel."""
+        self.rt_canvas.delete("all")
+        cw = self.rt_canvas.winfo_width()
+        if cw < 10: cw = 880
+
+        # Background grid lines (table rows)
+        row_h = 13
+        cols = 4
+        col_w = cw // cols
+
+        for ci in range(cols):
+            for ri, entry in enumerate(entries[ci*2:(ci+1)*2] if len(entries) > ci*2 else []):
+                x = ci * col_w + 4
+                y = 4 + ri * row_h
+                idx = ci * 2 + ri
+                if idx == highlight_idx:
+                    self.rt_canvas.create_rectangle(
+                        x - 2, y - 1, x + col_w - 6, y + row_h - 2,
+                        fill=C["red"], outline="")
+                    self.rt_canvas.create_text(
+                        x + 2, y + 5, text=entry[:18], fill=C["white"],
+                        font=("Courier", 9, "bold"), anchor="w")
+                else:
+                    col = C["purple"] if random.random() > 0.6 else C["dim"]
+                    self.rt_canvas.create_text(
+                        x + 2, y + 5, text=entry[:18], fill=col,
+                        font=("Courier", 9), anchor="w")
+
+        # Progress bar at bottom of RT canvas
+        bar_y = 42
+        bar_h = 10
+        fill_w = max(2, progress * cw)
+        bar_col = C["red"] if found and progress > 0.8 else C["purple"]
+        self.rt_canvas.create_rectangle(0, bar_y, cw, bar_y + bar_h,
+                                         fill=C["bg3"], outline="")
+        self.rt_canvas.create_rectangle(0, bar_y, fill_w, bar_y + bar_h,
+                                         fill=bar_col, outline="")
+        self.rt_canvas.create_text(cw // 2, bar_y + 5, text=status,
+                                    fill=C["white"], font=("Courier", 8, "bold"))
+
+        self.rt_status_label.config(
+            text="✓ FOUND" if (found and progress >= 1.0) else
+                 "✗ NOT FOUND" if (not found and progress >= 1.0) else "scanning...",
+            fg=C["red"] if (found and progress >= 1.0) else
+               C["green"] if (not found and progress >= 1.0) else C["dim"])
 
     def run_crack_animation(self, password, anim_duration, crack_seconds,
                             charset_size, is_timeout, strength_label,
@@ -782,8 +945,8 @@ class PasswordCrackerApp:
             progress = min(elapsed / anim_duration, 1.0)
 
             if is_timeout:
-                status = (f"[{attack_label}] Trying {attempts:,} combinations... "
-                          f"({progress*100:.0f}% of available time)")
+                status = (f"[{attack_label}] {attempts:,} combinations... "
+                          f"({progress*100:.0f}% of time)")
             else:
                 status = f"[{attack_label}] {attempts:,} attempts..."
 
@@ -795,7 +958,6 @@ class PasswordCrackerApp:
 
         # ── FINAL RESULT ──
         if is_timeout:
-            # Show "GAVE UP" state — fill remaining with ?
             final_display = []
             for i in range(pw_len):
                 if cracked[i]:
@@ -807,7 +969,6 @@ class PasswordCrackerApp:
                             strength_label, strength_color, message, tip,
                             attack_label)
         else:
-            # Cracked — reveal all
             self.root.after(0, self.show_cracked_result,
                             list(password), pw_len, crack_seconds,
                             strength_label, strength_color, message, tip,
