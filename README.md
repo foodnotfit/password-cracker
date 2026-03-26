@@ -68,7 +68,7 @@ Real-world password cracking depends entirely on *how* the password was stored. 
 
 **Live Hash Display** — as you type, the app computes and shows the real hex hash of your password using `hashlib`. This demonstrates that databases never store your actual password — only this unreadable fingerprint. bcrypt/Argon2 show a SHA-256 stand-in since those require external libraries, clearly labeled.
 
-**Hash Phase Animation** — Phase 2 of the crack pipeline: password characters feed into an animated "HASH FN" box, and the hash output builds up character by character on the right. Final frame shows the full hash with the label *"↑ This is what a hacker sees after a data breach."*
+**Hash Phase Animation** — Phase 2 of the crack pipeline: password characters feed into an animated "HASH FN" box, and the hash output builds up character by character on the right. The animation runs at half speed so every step is readable. The final frame holds for 1.5 seconds showing the full hash and the label *"↑ This is what a hacker sees after a data breach"* before proceeding to the crack phase.
 
 ### 📚 Offline Wordlist Augmentation (80k+ entries)
 Three sources merged at startup — no internet required:
@@ -134,14 +134,23 @@ password-cracker/
 
 ## 🔬 How It Works
 
-### Rainbow Table Phase
-When you hit **CRACK IT!**, the app first simulates a rainbow table lookup:
-- Scrolls through known password entries at high speed
-- If the password is in the table → entries freeze, row highlights red, match displayed
-- If not found → escalates to dictionary + brute-force phase
+### Three-Phase Attack Pipeline
 
-### Crack Animation Phase
-- Weak passwords: characters resolve one by one (like a real brute-force)
+When you hit **CRACK IT!**, the app runs three sequential phases:
+
+**Phase 1 — Rainbow Table Lookup (~1.2s)**
+- Scrolls through 80k+ known password entries at high speed
+- If found → entries freeze, row highlights red, match displayed
+- If not found → escalates to Phase 2
+
+**Phase 2 — Hash Animation (~2.4s + 1.5s hold)**
+- Password characters feed left-to-right into an animated HASH FN box
+- Hash output builds up character by character on the right
+- Final frame holds so you can read the full hash value
+- Label: *"↑ This hash is what a hacker sees after a data breach"*
+
+**Phase 3 — Crack Animation**
+- Weak passwords: characters resolve one by one (simulated brute-force)
 - Strong passwords: cracker "gives up" — unresolved chars show as `?`
 - Progress bar and status label show the active attack method throughout
 
