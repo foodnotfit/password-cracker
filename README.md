@@ -68,6 +68,19 @@ Real-world password cracking depends entirely on *how* the password was stored. 
 
 **Live Hash Display** — as you type, the app computes and shows the real hex hash of your password using `hashlib`. This demonstrates that databases never store your actual password — only this unreadable fingerprint. bcrypt/Argon2 show a SHA-256 stand-in since those require external libraries, clearly labeled.
 
+**Algorithm Comparison Bars** — a live panel below the hash selector shows all 5 algorithms simultaneously, each with a filled bar and crack time for the current password. Updates on every keystroke. The visual gap between MD5 and Argon2 tells the whole story at a glance:
+
+```
+HOW YOUR PASSWORD HOLDS UP BY STORAGE METHOD  (e.g. Summer2024!)
+MD5      ███░░░░░░░░░░░░░░░░░  8 seconds       TERRIBLE
+SHA-1    ████░░░░░░░░░░░░░░░░  1.3 minutes     WEAK
+SHA-256  ████░░░░░░░░░░░░░░░░  4.5 minutes     WEAK
+bcrypt   ████████░░░░░░░░░░░░  93 days         STRONG
+Argon2   ██████████░░░░░░░░░░  25 years        VERY STRONG
+```
+
+The same password stored with bcrypt instead of MD5 buys you **~1,000,000x more time**. No explanation needed.
+
 **Hash Phase Animation** — Phase 2 of the crack pipeline: password characters feed into an animated "HASH FN" box, and the hash output builds up character by character on the right. The animation runs at half speed so every step is readable. The final frame holds for 1.5 seconds showing the full hash and the label *"↑ This is what a hacker sees after a data breach"* before proceeding to the crack phase.
 
 ### 📚 Offline Wordlist Augmentation (80k+ entries)
