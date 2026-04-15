@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔓 Password Cracker — DARPA Family Day 2026</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:#f0f6fc;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:17px;min-height:100vh;display:flex;flex-direction:column}
+
+/* HEADER */
+#header{position:relative;overflow:hidden;padding:32px 20px 24px;text-align:center;background:linear-gradient(180deg,#0d1117 0%,#161b22 100%);border-bottom:2px solid #30363d}
+#starfield{position:absolute;top:0;left:0;width:100%;height:100%;z-index:0}
+#header-content{position:relative;z-index:1}
+#header h1{font-size:clamp(2.2rem,5vw,4rem);font-weight:900;background:linear-gradient(90deg,#f85149,#f0883e,#e3b341,#39d353,#39c5cf,#58a6ff,#bc8cff,#f85149);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:rainbowShift 3s linear infinite;letter-spacing:3px;margin-bottom:8px}
+@keyframes rainbowShift{0%{background-position:0% center}100%{background-position:300% center}}
+#header p{color:#8b949e;font-size:1rem;letter-spacing:1px}
+#header .subtitle{color:#58a6ff;font-size:0.9rem;margin-top:6px;font-weight:600}
+
+/* MAIN */
+#main{flex:1;padding:28px 20px;max-width:900px;width:100%;margin:0 auto}
+
+/* INPUT SECTION */
+.input-card{background:#161b22;border:2px solid #30363d;border-radius:16px;padding:24px;margin-bottom:20px}
+.input-row{display:flex;gap:10px;align-items:center;margin-bottom:14px}
+#pw-input{flex:1;padding:14px 18px;background:#0d1117;border:2px solid #30363d;border-radius:12px;color:#f0f6fc;font-size:1.2rem;font-family:monospace;letter-spacing:2px;outline:none;transition:border-color 0.2s}
+#pw-input:focus{border-color:#58a6ff;box-shadow:0 0 0 3px rgba(88,166,255,0.15)}
+.btn{padding:12px 22px;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{transform:translateY(-2px);filter:brightness(1.15)}
+.btn:active{transform:translateY(0)}
+.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.btn-show{background:#21262d;color:#8b949e;border:2px solid #30363d}
+.btn-crack{background:linear-gradient(135deg,#b91c1c,#f85149);color:#fff;min-width:130px;font-size:1.1rem}
+.btn-reset{background:#21262d;color:#8b949e;border:2px solid #30363d}
+
+/* LIVE STATS */
+.stats-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.stat-chip{background:#21262d;border:1px solid #30363d;border-radius:8px;padding:6px 14px;font-size:0.85rem;color:#8b949e;font-weight:600}
+.stat-chip span{color:#f0f6fc;font-family:monospace}
+#strength-badge{padding:6px 18px;border-radius:8px;font-weight:700;font-size:0.9rem;transition:all 0.3s;background:#21262d;border:1px solid #30363d;color:#8b949e}
+
+/* HASH SELECTOR */
+.hash-selector{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.hash-label{font-size:0.85rem;color:#8b949e;font-weight:600;white-space:nowrap}
+.hash-btn{padding:7px 14px;border:2px solid #30363d;border-radius:8px;background:#21262d;color:#8b949e;font-size:0.85rem;font-weight:700;cursor:pointer;transition:all 0.2s}
+.hash-btn:hover{border-color:#58a6ff;color:#f0f6fc}
+.hash-btn.active{color:#0d1117}
+.hash-desc{font-size:0.82rem;color:#8b949e;margin-top:4px;font-style:italic}
+
+/* COMPARISON BARS */
+.algo-bars{margin:16px 0}
+.algo-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.algo-bar-name{width:80px;font-size:0.82rem;font-weight:700;color:#8b949e;text-align:right;flex-shrink:0}
+.algo-bar-track{flex:1;height:22px;background:#21262d;border-radius:6px;overflow:hidden;border:1px solid #30363d}
+.algo-bar-fill{height:100%;border-radius:6px;transition:width 0.5s ease;min-width:4px}
+.algo-bar-time{width:130px;font-size:0.78rem;font-family:monospace;color:#8b949e;flex-shrink:0}
+
+/* HASH DISPLAY */
+.hash-display{background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:12px 16px;margin-top:12px;font-family:monospace;font-size:0.78rem;word-break:break-all;color:#39c5cf;line-height:1.6}
+.hash-display .hash-label-inline{color:#8b949e;font-size:0.72rem;display:block;margin-bottom:4px}
+
+/* ANIMATION AREA */
+#anim-area{display:none;background:#161b22;border:2px solid #30363d;border-radius:16px;padding:24px;margin-bottom:20px}
+#anim-area.visible{display:block}
+
+/* RAINBOW TABLE ANIM */
+.rainbow-table{font-family:monospace;font-size:0.82rem;height:120px;overflow:hidden;border:1px solid #30363d;border-radius:8px;padding:10px;background:#0d1117;margin-bottom:12px;position:relative}
+.rainbow-row{padding:2px 0;color:#8b949e;transition:all 0.1s}
+.rainbow-row.checking{color:#e3b341;font-weight:700}
+.rainbow-row.found{color:#39d353;font-weight:900;font-size:1rem}
+.rainbow-row.notfound{color:#f85149}
+
+/* HASH ANIM */
+.hash-anim{display:flex;align-items:center;justify-content:center;gap:16px;padding:16px;font-family:monospace;flex-wrap:wrap}
+.hash-box{background:#21262d;border:2px solid #30363d;border-radius:10px;padding:10px 16px;font-size:0.82rem;max-width:180px;word-break:break-all;text-align:center}
+.hash-arrow{font-size:1.5rem;color:#58a6ff;animation:pulse 0.8s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.hash-fn-box{background:linear-gradient(135deg,#1a2a3a,#21262d);border:2px solid #58a6ff;border-radius:10px;padding:10px 20px;color:#58a6ff;font-weight:900;font-size:1rem;text-align:center}
+
+/* MATRIX CRACK */
+.matrix-area{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:16px;min-height:80px;align-items:center}
+.char-box{width:48px;height:56px;border:2px solid #30363d;border-radius:8px;background:#21262d;display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:1.5rem;font-weight:700;transition:all 0.15s;position:relative}
+.char-box.scrambling{color:#00ff41;border-color:#39d353;background:#0a1a0a;animation:matrixFlicker 0.1s infinite}
+.char-box.revealed{color:#39d353;border-color:#39d353;background:#0a1a0a;box-shadow:0 0 12px rgba(57,211,83,0.4);animation:none}
+.char-box.failed{color:#f85149;border-color:#f85149;background:#2a0a0a}
+.char-box.question{color:#f85149;border-color:#f85149;background:#2a0a0a}
+@keyframes matrixFlicker{0%,100%{opacity:1}50%{opacity:0.7}}
+
+/* PROGRESS */
+.progress-wrap{margin:12px 0}
+.progress-bar{height:12px;background:#21262d;border-radius:8px;overflow:hidden;border:1px solid #30363d}
+.progress-fill{height:100%;border-radius:8px;transition:width 0.1s linear}
+.status-text{text-align:center;font-size:0.9rem;color:#8b949e;margin-top:8px;font-family:monospace;min-height:24px}
+
+/* RESULTS */
+#results-area{display:none;background:#161b22;border:2px solid #30363d;border-radius:16px;padding:28px;margin-bottom:20px;text-align:center;animation:slideIn 0.4s ease}
+#results-area.visible{display:block}
+@keyframes slideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+#verdict{font-size:3rem;font-weight:900;letter-spacing:3px;margin-bottom:8px}
+#crack-time-display{font-size:1.3rem;font-family:monospace;margin-bottom:16px;color:#8b949e}
+#result-message{font-size:1.05rem;margin-bottom:16px;line-height:1.6;max-width:600px;margin-left:auto;margin-right:auto}
+#result-tip{background:#21262d;border-radius:10px;padding:14px 20px;font-size:0.9rem;color:#58a6ff;border-left:4px solid #58a6ff;text-align:left;max-width:600px;margin:0 auto}
+#result-tip::before{content:"💡 TIP: ";font-weight:700}
+
+/* STRENGTH METER */
+.strength-meter{margin:20px 0 0}
+.strength-meter-label{text-align:center;font-size:0.85rem;color:#8b949e;margin-bottom:8px}
+.strength-track{height:28px;border-radius:10px;overflow:hidden;display:flex;border:1px solid #30363d}
+.strength-segment{flex:1;transition:all 0.5s}
+.strength-marker{position:relative;height:28px}
+#strength-pointer{transition:left 0.5s;position:absolute;top:-6px;width:4px;height:40px;background:#f0f6fc;border-radius:2px;box-shadow:0 0 8px rgba(240,246,252,0.6)}
+
+/* TIPS FOOTER */
+#tips-footer{background:#161b22;border-top:2px solid #30363d;padding:14px 20px;text-align:center;font-size:0.85rem;color:#8b949e;display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+#tips-footer span{display:flex;align-items:center;gap:6px}
+
+/* SECTION LABELS */
+.section-label{font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#8b949e;margin-bottom:8px}
+
+/* CARDS */
+.card{background:#161b22;border:2px solid #30363d;border-radius:16px;padding:20px;margin-bottom:16px}
+
+/* PROFANITY NOTICE */
+#profanity-notice{display:none;background:#2a0a0a;border:2px solid #f85149;border-radius:10px;padding:12px 16px;color:#f85149;font-weight:700;text-align:center;margin-bottom:12px}
+#profanity-notice.visible{display:block}
+
+footer{text-align:center;padding:14px;color:#30363d;font-size:0.8rem;background:#0d1117;border-top:1px solid #161b22}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <canvas id="starfield"></canvas>
+  <div id="header-content">
+    <h1>🔓 PASSWORD CRACKER</h1>
+    <p>DARPA Family Day 2026 &nbsp;|&nbsp; Cybersecurity Demonstration</p>
+    <p class="subtitle">Enter a password and watch a real cracker try to break it</p>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- PROFANITY NOTICE -->
+  <div id="profanity-notice">⚠️ Let's keep it clean for Family Day! Please try a different password.</div>
+
+  <!-- INPUT CARD -->
+  <div class="input-card">
+    <div class="section-label">🔑 Enter a Password</div>
+    <div class="input-row">
+      <input type="password" id="pw-input" placeholder="Type any password…" maxlength="64" autocomplete="off" spellcheck="false">
+      <button class="btn btn-show" id="show-btn" onclick="toggleShow()">👁 SHOW</button>
+      <button class="btn btn-crack" id="crack-btn" onclick="startCrack()" disabled>⚡ CRACK IT!</button>
+    </div>
+
+    <!-- LIVE STATS -->
+    <div class="stats-row">
+      <div class="stat-chip">Length: <span id="stat-len">0</span></div>
+      <div class="stat-chip">a–z: <span id="stat-lower">✗</span></div>
+      <div class="stat-chip">A–Z: <span id="stat-upper">✗</span></div>
+      <div class="stat-chip">0–9: <span id="stat-digit">✗</span></div>
+      <div class="stat-chip">!@#: <span id="stat-sym">✗</span></div>
+      <div id="strength-badge">—</div>
+    </div>
+
+    <!-- HASH SELECTOR -->
+    <div class="section-label">🔐 Hash Algorithm (How It's Stored)</div>
+    <div class="hash-selector">
+      <button class="hash-btn active" data-algo="SHA-256" onclick="selectAlgo(this)" style="border-color:#e3b341;color:#e3b341">SHA-256</button>
+      <button class="hash-btn" data-algo="MD5" onclick="selectAlgo(this)">MD5</button>
+      <button class="hash-btn" data-algo="SHA-1" onclick="selectAlgo(this)">SHA-1</button>
+      <button class="hash-btn" data-algo="bcrypt" onclick="selectAlgo(this)">bcrypt</button>
+      <button class="hash-btn" data-algo="Argon2" onclick="selectAlgo(this)">Argon2</button>
+    </div>
+    <div class="hash-desc" id="hash-desc">Common — ~3B/sec on modern GPU hardware</div>
+
+    <!-- ALGO COMPARISON BARS -->
+    <div class="algo-bars" id="algo-bars">
+      <div class="section-label" style="margin-top:12px">⚡ All Algorithms — Crack Time Comparison</div>
+    </div>
+
+    <!-- LIVE HASH -->
+    <div class="hash-display" id="live-hash">
+      <span class="hash-label-inline">SHA-256 hash of your password (updates live):</span>
+      <span id="hash-value" style="color:#8b949e">—</span>
+    </div>
+  </div>
+
+  <!-- ANIMATION AREA -->
+  <div id="anim-area">
+    <!-- RAINBOW TABLE -->
+    <div class="section-label">📋 Phase 1: Rainbow Table Lookup</div>
+    <div class="rainbow-table" id="rainbow-table"></div>
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progress1" style="width:0%;background:linear-gradient(90deg,#f0883e,#e3b341)"></div></div>
+    </div>
+    <div class="status-text" id="status1">Scanning breach databases…</div>
+
+    <!-- HASH ANIM -->
+    <div class="section-label" style="margin-top:20px">🔐 Phase 2: Hash Computation</div>
+    <div class="hash-anim" id="hash-anim">
+      <div class="hash-box" id="hash-in" style="color:#e3b341">INPUT</div>
+      <div class="hash-arrow">→</div>
+      <div class="hash-fn-box" id="hash-fn-label">SHA-256</div>
+      <div class="hash-arrow">→</div>
+      <div class="hash-box" id="hash-out" style="color:#39c5cf">OUTPUT</div>
+    </div>
+
+    <!-- MATRIX CRACK -->
+    <div class="section-label" style="margin-top:20px">🖥️ Phase 3: Matrix Crack</div>
+    <div class="matrix-area" id="matrix-area"></div>
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progress2" style="width:0%;background:linear-gradient(90deg,#39d353,#00ff41)"></div></div>
+    </div>
+    <div class="status-text" id="status2">Initializing…</div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results-area">
+    <div id="verdict">—</div>
+    <div id="crack-time-display"></div>
+    <div id="result-message"></div>
+    <div id="result-tip"></div>
+
+    <!-- STRENGTH METER -->
+    <div class="strength-meter">
+      <div class="strength-meter-label">Password Strength Scale</div>
+      <div class="strength-track" id="strength-track"></div>
+    </div>
+
+    <div style="margin-top:20px">
+      <button class="btn btn-reset" onclick="resetApp()" style="margin:0 auto;display:block">🔄 Try Another Password</button>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- TIPS FOOTER -->
+<div id="tips-footer">
+  <span>✅ Use 12+ characters</span>
+  <span>✅ Mix UPPER + lower + numbers + symbols</span>
+  <span>✅ Avoid real words & names</span>
+  <span>✅ Use a password manager</span>
+  <span>✅ Never reuse passwords</span>
+</div>
+
+<footer>DARPA Family Day 2026 &nbsp;·&nbsp; Cybersecurity Education Demo &nbsp;·&nbsp; Built with ❤️ for future scientists</footer>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════
+
+const HASH_ALGOS = {
+  "MD5":     {speed:100e9,  color:"#f85149", desc:"Ancient — ~100B/sec on modern GPU hardware"},
+  "SHA-1":   {speed:10e9,   color:"#f0883e", desc:"Old — ~10B/sec on modern GPU hardware"},
+  "SHA-256": {speed:3e9,    color:"#e3b341", desc:"Common — ~3B/sec on modern GPU hardware"},
+  "bcrypt":  {speed:100e3,  color:"#39d353", desc:"Slow by design — ~100K/sec (much safer!)"},
+  "Argon2":  {speed:1e3,    color:"#bc8cff", desc:"Modern standard — ~1K/sec (best for passwords!)"},
+};
+
+const COMMON_PASSWORDS = new Set([
+  "password","123456","12345678","qwerty","abc123","monkey","master","dragon",
+  "111111","baseball","iloveyou","trustno1","sunshine","letmein","football",
+  "shadow","michael","ninja","mustang","password1","123456789","1234","12345",
+  "princess","admin","welcome","hello","charlie","donald","login","starwars",
+  "soccer","batman","test","pass","killer","cookie","robert","flower","summer",
+  "winter","spring","ashley","bailey","cheese","chicken","computer","diamond",
+  "freedom","forever","friends","ginger","hannah","hockey","hunter","jessica",
+  "jordan","joshua","love","maggie","matrix","merlin","michelle","monday",
+  "orange","peanut","pepper","purple","ranger","samantha","secret","silver",
+  "sparky","spider","success","superman","thomas","thunder","tiger","whatever",
+  "william","yankees","zeppelin","access","albert","andrea","angel","apple",
+  "austin","banana","biteme","buster","calvin","camaro","carolina","cocacola",
+  "coffee","dallas","dolphin","digital","eagles","edward","falcon","fender",
+  "ferrari","fishing","gateway","george","gators","golden","guitar","hammer",
+  "harley","harvest","heather","helpme","iceman","internet","jackson","jasmine",
+  "jennifer","johnson","knight","lakers","legend","london","lucky","marina",
+  "marlboro","martin","maverick","mercedes","michigan","miller","mountain",
+  "murphy","nascar","nicole","oliver","patrick","phoenix","player","please",
+  "rabbit","rachel","rocket","rosebud","runner","samson","saturn","scooter",
+  "shannon","sierra","smokey","snake","spartan","stanley","steelers","testing",
+  "topgun","toyota","travis","trustme","tucker","twitter","united","victory",
+  "viking","viper","warrior","wizard","xavier","yamaha","yankee","yellow",
+  "123321","654321","666666","696969","777777","888888","999999","000000",
+  "112233","121212","131313","abcabc","abcdef","qazwsx","qwerty123","password123",
+  "iloveu","fuckyou","asshole","pussy","money","abc","aaa","aaaa","aaaaa",
+  "qwe","zxcvbn","asdfg","1q2w3e","1q2w3e4r","p@ssword","p@ss","pa$$word",
+  "pa$$w0rd","passw0rd","passw0rd1","pass123","pass1234","1234abcd","a1b2c3",
+  "abc1234","test123","admin123","user","user123","root","root123","toor",
+  "password2","password3","letmein1","welcome1","qwerty1","123qwe","321cba",
+]);
+
+const KEYBOARD_WALKS = new Set([
+  "qwerty","qwertz","qwert","asdf","asdfgh","asdfghjkl","zxcvbn","zxcvbnm",
+  "qazwsx","wsxedc","rfvtgb","123456","234567","345678","456789","567890",
+  "1qaz2wsx","qweasd","qweasdzxc","1234567","12345678","123456789","1234567890",
+]);
+
+const LEET_MAP = {
+  "@":"a","4":"a","^":"a","8":"b","(":"c","{":"c","<":"c","3":"e",
+  "6":"g","9":"g","#":"h","1":"i","!":"i","|":"i","0":"o","$":"s",
+  "5":"s","7":"t","+":"t","2":"z",
+};
+
+const COMMON_WORDS = new Set([
+  "the","be","to","of","and","a","in","that","have","it","for","not","on",
+  "with","he","as","you","do","at","this","but","his","by","from","they",
+  "we","say","her","she","or","an","will","my","one","all","would","there",
+  "their","what","so","up","out","if","about","who","get","which","go","me",
+  "when","make","can","like","time","no","just","him","know","take","people",
+  "into","year","your","good","some","could","them","see","other","than","then",
+  "now","look","only","come","its","over","think","also","back","after","use",
+  "two","how","our","work","first","well","way","even","new","want","because",
+  "any","these","give","day","most","us","love","life","hand","high","keep",
+  "last","long","great","old","big","small","here","man","world","head","still",
+  "name","food","home","night","house","water","fire","game","car","city",
+  "tree","sun","moon","star","fish","bird","dog","cat","book","door","girl",
+  "boy","king","baby","open","play","run","walk","talk","read","move","live",
+  "real","dark","light","word","line","turn","end","show","ever","best","help",
+  "start","hard","left","right","red","blue","green","black","white","gold",
+  "silver","rock","music","band","song","cool","super","fast","slow","hot","cold",
+  "dead","free","true","half","much","many","each","team","eye","face","room",
+  "body","part","next","sure","full","kind","sort","young","power","money",
+  "point","place","state","number","group","table","class","north","south",
+  "east","west","story","child","school","family","student","country","problem",
+  "mother","father","brother","sister","friend","system","program","question",
+  "change","order","level","reason","office","leader","person","heart","party",
+  "market","company","ground","center","period","member","horse","monkey",
+  "dragon","tiger","eagle","bear","wolf","lion","snake","shark","hawk","fox",
+  "rabbit","mouse","spider","queen","prince","knight","castle","tower","bridge",
+  "river","ocean","storm","cloud","rain","snow","wind","flame","earth","stone",
+  "sword","shield","magic","spirit","ghost","angel","devil","shadow","ninja",
+  "pirate","robot","alien","zombie","vampire","wizard","warrior","hunter",
+  "ranger","master","legend","hero","secret","hidden","mystic","crystal",
+  "cosmic","cyber","pixel","turbo","ultra","mega","alpha","omega","delta",
+  "sigma","theta","gamma","beta","phantom","titan","atlas","phoenix","falcon",
+  "viper","cobra","panther","leopard","cheetah","jaguar","raptor","maverick",
+  "trooper","captain","general","admiral","pilot","rocket","comet","nebula",
+  "galaxy","cosmos","orbit","solar","lunar","stellar","quantum","proton",
+  "neutron","photon","laser","plasma","fusion","matrix","cipher","enigma",
+  "puzzle","riddle","summer","winter","spring","autumn","morning","evening",
+  "sunday","monday","tuesday","wednesday","thursday","friday","saturday",
+  "january","february","march","april","may","june","july","august","september",
+  "october","november","december","football","baseball","basketball","soccer",
+  "tennis","hockey","golf","boxing","surfing","skiing","racing","fishing",
+  "hiking","dancing","singing","guitar","piano","drums","violin","flute",
+  "banana","apple","orange","cherry","grape","lemon","mango","peach","melon",
+  "berry","coconut","cookie","chocolate","candy","sugar","butter","pepper",
+  "cheese","coffee","pizza","burger","chicken","turkey","bacon","pasta",
+  "salad","cream","sauce","bread","toast","juice","milk","cake","diamond",
+  "ruby","emerald","pearl","sapphire","topaz","jade","bronze","copper","iron",
+  "steel","chrome","titanium","platinum","purple","yellow","pink","brown",
+  "grey","gray","violet","indigo","scarlet","crimson","ivory","amber","coral",
+  "password","computer","internet","network","server","system","hacker",
+  "coder","gaming","player","winner","loser","champion","correct","battery",
+  "staple","electric","shadow","master","dragon","sunshine","thunder","storm",
+  "rainbow","freedom","justice","courage","falcon","eagle","hawk","phoenix",
+  "panther","ninja","samurai","warrior","legend","titan","marvel","avenger",
+]);
+
+const PROFANITY_FALLBACK = new Set([
+  "fuck","shit","ass","bitch","cunt","dick","cock","pussy",
+  "bastard","damn","crap","piss","slut","whore","nigger",
+  "faggot","retard","twat","wank","bollocks","fuk","fck","sht",
+]);
+
+const CRACK_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%&*";
+const DICTIONARY_SIZE = 200000;
+const RULE_MULTIPLIER = 1000;
+const GUESSES_PER_SEC_BRUTE = 10e9;
+const GUESSES_PER_SEC_DICT  = 100e9;
+
+// ═══════════════════════════════════════════════════════════════
+// LOGIC — ported from password_cracker.py
+// ═══════════════════════════════════════════════════════════════
+
+const LEET_NORMALIZE = {"0":"o","1":"i","3":"e","4":"a","5":"s","6":"g","7":"t","8":"b","9":"g","@":"a","$":"s","!":"i","+":"t","|":"i"};
+
+function normalizeForProfanity(text) {
+  return text.toLowerCase().split("").map(c => LEET_NORMALIZE[c] || c).join("");
+}
+
+function profanityCandidates(text) {
+  const raw = text.toLowerCase();
+  const normalized = normalizeForProfanity(text);
+  const alphaOnly = (raw.match(/[a-z]+/g)||[]).join(" ");
+  const alphaNorm = (normalized.match(/[a-z]+/g)||[]).join(" ");
+  return new Set([raw, normalized, alphaOnly, alphaNorm]);
+}
+
+function containsProfanity(text) {
+  for (const variant of profanityCandidates(text)) {
+    const words = (variant.match(/[a-z]+/g)||[]);
+    if (words.some(w => PROFANITY_FALLBACK.has(w))) return true;
+  }
+  return false;
+}
+
+function deleet(password) {
+  return password.split("").map(c => {
+    const lo = c.toLowerCase();
+    return LEET_MAP[lo] || LEET_MAP[c] || lo;
+  }).join("");
+}
+
+function stripTrailingDigitsSym(password) {
+  let i = password.length;
+  while (i > 0 && (/[\d\W]/.test(password[i-1]))) i--;
+  if (i === 0) return [password, ""];
+  return [password.slice(0, i), password.slice(i)];
+}
+
+function isKeyboardWalk(password) {
+  return KEYBOARD_WALKS.has(password.toLowerCase());
+}
+
+function isSequential(password) {
+  if (password.length < 3) return false;
+  const codes = [...password].map(c => c.charCodeAt(0));
+  const diffs = codes.slice(1).map((c,i) => c - codes[i]);
+  if (diffs.every(d => d === 1) || diffs.every(d => d === -1)) return true;
+  if (new Set(diffs).size === 1 && Math.abs(diffs[0]) <= 2) return true;
+  return false;
+}
+
+function findDictionaryWords(text) {
+  const lower = text.toLowerCase();
+  const found = [];
+  let i = 0;
+  while (i < lower.length) {
+    let best = null;
+    for (let len = Math.min(12, lower.length - i); len > 2; len--) {
+      const candidate = lower.slice(i, i + len);
+      if (COMMON_WORDS.has(candidate)) { best = candidate; break; }
+    }
+    if (best) { found.push(best); i += best.length; }
+    else i++;
+  }
+  return found;
+}
+
+function computeCharsetSize(password) {
+  let size = 0;
+  if (/[a-z]/.test(password)) size += 26;
+  if (/[A-Z]/.test(password)) size += 26;
+  if (/\d/.test(password)) size += 10;
+  if (/[^a-zA-Z0-9]/.test(password)) size += 32;
+  return size || 26;
+}
+
+function estimateCrackTime(password, hashSpeed) {
+  const pwLen = password.length;
+  const pwLower = password.toLowerCase();
+  const charsetSize = computeCharsetSize(password);
+
+  const effBrute = hashSpeed !== undefined ? hashSpeed : GUESSES_PER_SEC_BRUTE;
+  const effDict  = hashSpeed !== undefined ? hashSpeed : GUESSES_PER_SEC_DICT;
+
+  // Phase 1: Instant catches
+  if (COMMON_PASSWORDS.has(pwLower)) return {seconds:0.001, charsetSize, method:"common"};
+  if (new Set(password).size === 1) return {seconds:0.001, charsetSize, method:"pattern"};
+  if (isKeyboardWalk(password)) return {seconds:0.001, charsetSize, method:"keyboard_walk"};
+  if (isSequential(password)) return {seconds:0.001, charsetSize, method:"sequential"};
+
+  // Phase 2: Rule-based
+  let bestTime = Infinity, bestMethod = "brute_force";
+
+  const deleeted = deleet(password);
+  if (COMMON_PASSWORDS.has(deleeted)) { bestTime = 0.01; bestMethod = "leet_common"; }
+
+  const [base, suffix] = stripTrailingDigitsSym(password);
+  const baseLower = base.toLowerCase();
+  const baseDeleeted = deleet(base);
+
+  if (COMMON_PASSWORDS.has(baseLower) || COMMON_PASSWORDS.has(baseDeleeted)) {
+    const suffixCombos = suffix.length ? Math.pow(10, Math.max(suffix.length, 1)) : 1;
+    const combos = COMMON_PASSWORDS.size * suffixCombos * 100;
+    const t = combos / effDict;
+    if (t < bestTime) { bestTime = t; bestMethod = "common_variant"; }
+  }
+
+  if (baseLower.length >= 3) {
+    if (COMMON_WORDS.has(baseLower) || COMMON_WORDS.has(baseDeleeted)) {
+      const suffixCombos = suffix.length ? Math.pow(10, Math.max(suffix.length, 1)) : 1;
+      const combos = DICTIONARY_SIZE * RULE_MULTIPLIER * suffixCombos;
+      const t = combos / effDict;
+      if (t < bestTime) { bestTime = t; bestMethod = "dictionary_variant"; }
+    }
+  }
+
+  if (deleeted.length >= 3 && COMMON_WORDS.has(deleeted)) {
+    const combos = DICTIONARY_SIZE * RULE_MULTIPLIER;
+    const t = combos / effDict;
+    if (t < bestTime) { bestTime = t; bestMethod = "leet_dictionary"; }
+  }
+
+  const wordsFound = findDictionaryWords(deleeted);
+  const totalWordChars = wordsFound.reduce((s,w) => s+w.length, 0);
+  const leftover = pwLen - totalWordChars;
+  if (wordsFound.length >= 2 && leftover <= 4) {
+    const combos = Math.pow(DICTIONARY_SIZE, wordsFound.length) * (leftover > 0 ? Math.pow(94, leftover) : 1);
+    const t = combos / effDict;
+    if (t < bestTime) { bestTime = t; bestMethod = "multi_word"; }
+  }
+
+  if (/^\d+$/.test(password)) {
+    const combos = Math.pow(10, pwLen);
+    const t = combos / effBrute;
+    if (t < bestTime) { bestTime = t; bestMethod = "pin"; }
+  }
+
+  // Phase 3: Brute force
+  const bruteCombos = Math.pow(charsetSize, pwLen);
+  const bruteTime = bruteCombos / effBrute;
+  if (bruteTime < bestTime) { bestTime = bruteTime; bestMethod = "brute_force"; }
+
+  return {seconds: bestTime, charsetSize, method: bestMethod};
+}
+
+function formatTime(seconds) {
+  if (seconds < 0.001) return "INSTANTLY";
+  if (seconds < 1) return `${(seconds*1000).toFixed(0)} milliseconds`;
+  if (seconds < 60) return `${seconds.toFixed(1)} seconds`;
+  if (seconds < 3600) return `${(seconds/60).toFixed(1)} minutes`;
+  if (seconds < 86400) return `${(seconds/3600).toFixed(1)} hours`;
+  if (seconds < 86400*365) return `${(seconds/86400).toFixed(0)} days`;
+  if (seconds < 86400*365*1000) return `${(seconds/(86400*365)).toFixed(0)} years`;
+  if (seconds < 86400*365*1e6) return `${(seconds/(86400*365*1000)).toFixed(0)} thousand years`;
+  if (seconds < 86400*365*1e9) return `${(seconds/(86400*365*1e6)).toFixed(0)} million years`;
+  if (seconds < 86400*365*1e12) return `${(seconds/(86400*365*1e9)).toFixed(0)} billion years`;
+  return `${(seconds/(86400*365*1e12)).toFixed(0)} trillion years`;
+}
+
+function getStrengthTier(seconds) {
+  if (seconds < 1)          return {label:"CRACKED!",     color:"#f85149", message:"Oh no! A hacker would break this INSTANTLY!", tip:"Try a longer password with UPPER, lower, numbers & symbols — and avoid real words!"};
+  if (seconds < 60)         return {label:"TERRIBLE",     color:"#f85149", message:"This falls in seconds. Any hacker tool would break in immediately.", tip:"Avoid dictionary words, names, and common patterns like Summer2024!"};
+  if (seconds < 3600)       return {label:"WEAK",         color:"#f0883e", message:"A hacker could crack this in minutes. Still way too easy!", tip:"Avoid real words and predictable patterns — even with numbers and symbols added."};
+  if (seconds < 86400)      return {label:"FAIR",         color:"#f0883e", message:"Better, but a dedicated attacker could crack this in hours.", tip:"Try a passphrase of 4+ random words, or add more random characters."};
+  if (seconds < 86400*30)   return {label:"MEDIUM",       color:"#e3b341", message:"A hacker would need days to weeks. Getting there!", tip:"Longer and more random is always better — avoid real words if possible."};
+  if (seconds < 86400*365*10) return {label:"STRONG",     color:"#39d353", message:"Nice! This would take months to years to crack.", tip:"Great job! Consider using a password manager to store it safely."};
+  if (seconds < 86400*365*1e6) return {label:"VERY STRONG", color:"#39d353", message:"Excellent! Even a powerful GPU cluster would take centuries.", tip:"You're doing great. A password manager helps you use unique passwords everywhere."};
+  return {label:"UNBREAKABLE", color:"#bc8cff", message:"WOW! Even a supercomputer would give up before the universe ends!", tip:"You're a password master! 🏆 Share this achievement with a DARPA scientist!"};
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HASH (Web Crypto)
+// ═══════════════════════════════════════════════════════════════
+
+async function sha256(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// APP STATE
+// ═══════════════════════════════════════════════════════════════
+
+let selectedAlgo = "SHA-256";
+let cracking = false;
+let showingPassword = false;
+let hashDebounce = null;
+let animCancel = false;
+
+// ═══════════════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════════════
+
+function toggleShow() {
+  showingPassword = !showingPassword;
+  const input = document.getElementById("pw-input");
+  const btn = document.getElementById("show-btn");
+  input.type = showingPassword ? "text" : "password";
+  btn.textContent = showingPassword ? "🙈 HIDE" : "👁 SHOW";
+}
+
+function selectAlgo(btn) {
+  document.querySelectorAll(".hash-btn").forEach(b => {
+    b.classList.remove("active");
+    b.style.borderColor = "#30363d";
+    b.style.color = "#8b949e";
+  });
+  btn.classList.add("active");
+  selectedAlgo = btn.dataset.algo;
+  const info = HASH_ALGOS[selectedAlgo];
+  btn.style.borderColor = info.color;
+  btn.style.color = info.color;
+  document.getElementById("hash-desc").textContent = info.desc;
+  document.getElementById("hash-fn-label").textContent = selectedAlgo;
+  updateAlgoBars();
+}
+
+function updateLiveStats() {
+  const pw = document.getElementById("pw-input").value;
+  document.getElementById("stat-len").textContent = pw.length;
+  document.getElementById("stat-lower").textContent = /[a-z]/.test(pw) ? "✓" : "✗";
+  document.getElementById("stat-upper").textContent = /[A-Z]/.test(pw) ? "✓" : "✗";
+  document.getElementById("stat-digit").textContent = /\d/.test(pw) ? "✓" : "✗";
+  document.getElementById("stat-sym").textContent   = /[^a-zA-Z0-9]/.test(pw) ? "✓" : "✗";
+
+  document.getElementById("crack-btn").disabled = pw.length === 0 || cracking;
+
+  if (pw.length === 0) {
+    document.getElementById("strength-badge").textContent = "—";
+    document.getElementById("strength-badge").style.cssText = "background:#21262d;border:1px solid #30363d;color:#8b949e";
+    updateAlgoBars();
+    return;
+  }
+
+  const {seconds} = estimateCrackTime(pw, HASH_ALGOS[selectedAlgo].speed);
+  const tier = getStrengthTier(seconds);
+  const badge = document.getElementById("strength-badge");
+  badge.textContent = `${tier.label} · ${formatTime(seconds)}`;
+  badge.style.cssText = `background:${tier.color}22;border:2px solid ${tier.color};color:${tier.color};padding:6px 18px;border-radius:8px;font-weight:700;font-size:0.9rem;transition:all 0.3s`;
+
+  updateAlgoBars();
+
+  // Live hash
+  clearTimeout(hashDebounce);
+  hashDebounce = setTimeout(async () => {
+    if (pw.length > 0) {
+      const h = await sha256(pw);
+      document.getElementById("hash-value").textContent = h;
+      document.getElementById("hash-value").style.color = "#39c5cf";
+    }
+  }, 200);
+}
+
+function updateAlgoBars() {
+  const pw = document.getElementById("pw-input").value;
+  const container = document.getElementById("algo-bars");
+  const existingRows = container.querySelectorAll(".algo-bar-row");
+  
+  // Build/update rows
+  const algos = Object.entries(HASH_ALGOS);
+  
+  // Compute max seconds (log scale) for bar sizing
+  const times = algos.map(([, info]) => {
+    if (pw.length === 0) return 0;
+    return estimateCrackTime(pw, info.speed).seconds;
+  });
+  const maxLog = Math.max(...times.map(t => Math.log10(Math.max(t, 0.0001))));
+  const minLog = -3; // 0.001 seconds
+
+  container.querySelectorAll(".algo-bar-row").forEach(r => r.remove());
+
+  algos.forEach(([name, info], idx) => {
+    const t = times[idx];
+    const timeStr = pw.length > 0 ? formatTime(t) : "—";
+    const logT = pw.length > 0 ? Math.log10(Math.max(t, 0.0001)) : minLog;
+    const pct = pw.length > 0 ? Math.max(4, Math.min(100, ((logT - minLog) / (maxLog - minLog + 1)) * 100)) : 4;
+
+    const row = document.createElement("div");
+    row.className = "algo-bar-row";
+    row.innerHTML = `
+      <div class="algo-bar-name" style="color:${info.color}">${name}</div>
+      <div class="algo-bar-track">
+        <div class="algo-bar-fill" style="width:${pct}%;background:${info.color}"></div>
+      </div>
+      <div class="algo-bar-time" style="color:${info.color}">${timeStr}</div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ANIMATION — Phase 1: Rainbow Table
+// ═══════════════════════════════════════════════════════════════
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function randInt(a, b) { return a + Math.floor(Math.random() * (b - a)); }
+
+const SAMPLE_PASSWORDS = [...COMMON_PASSWORDS].slice(0, 300);
+
+async function phase1RainbowTable(password) {
+  const table = document.getElementById("rainbow-table");
+  const prog  = document.getElementById("progress1");
+  const status = document.getElementById("status1");
+
+  table.innerHTML = "";
+  const isFound = COMMON_PASSWORDS.has(password.toLowerCase());
+  const duration = 1200;
+  const startTime = Date.now();
+
+  status.textContent = "🔍 Scanning breach database of 10 billion leaked passwords…";
+
+  return new Promise(resolve => {
+    let rowCount = 0;
+    function tick() {
+      if (animCancel) { resolve(false); return; }
+      const elapsed = Date.now() - startTime;
+      const frac = Math.min(elapsed / duration, 1);
+      prog.style.width = (frac * 100) + "%";
+
+      // Add some random rows
+      const batchSize = Math.floor(Math.random() * 3) + 1;
+      for (let i = 0; i < batchSize && rowCount < 60; i++) {
+        const sample = SAMPLE_PASSWORDS[randInt(0, SAMPLE_PASSWORDS.length)];
+        const row = document.createElement("div");
+        row.className = "rainbow-row";
+        row.textContent = `[${String(rowCount * 17000000).padStart(12, " ")}] Checking: ${sample} …`;
+        table.appendChild(row);
+        rowCount++;
+        table.scrollTop = table.scrollHeight;
+      }
+
+      if (frac < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        // Final reveal
+        const finalRow = document.createElement("div");
+        if (isFound) {
+          finalRow.className = "rainbow-row found";
+          finalRow.textContent = `✅ MATCH FOUND: "${password}" — entry #7,342,891,002`;
+          status.textContent = "⚡ Found in rainbow table! Instant crack.";
+        } else {
+          finalRow.className = "rainbow-row notfound";
+          finalRow.textContent = `❌ NOT FOUND — escalating to hash attack…`;
+          status.textContent = "Not in rainbow table. Moving to hash cracking…";
+        }
+        table.appendChild(finalRow);
+        table.scrollTop = table.scrollHeight;
+        setTimeout(() => resolve(isFound), 500);
+      }
+    }
+    requestAnimationFrame(tick);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ANIMATION — Phase 2: Hash
+// ═══════════════════════════════════════════════════════════════
+
+async function phase2Hash(password) {
+  const hashIn  = document.getElementById("hash-in");
+  const hashOut = document.getElementById("hash-out");
+  const fnLabel = document.getElementById("hash-fn-label");
+
+  fnLabel.textContent = selectedAlgo;
+  hashIn.textContent  = password.length > 12 ? password.slice(0,10)+"…" : password;
+  hashIn.style.color  = "#e3b341";
+
+  // Scramble output
+  let scrambleInterval = setInterval(() => {
+    let fake = "";
+    for (let i = 0; i < 16; i++) fake += "0123456789abcdef"[randInt(0,16)];
+    hashOut.textContent = fake + "…";
+    hashOut.style.color = "#39c5cf";
+  }, 80);
+
+  await sleep(1200);
+  clearInterval(scrambleInterval);
+
+  const hash = await sha256(password);
+  hashOut.textContent = hash.slice(0, 20) + "…";
+  hashOut.style.color = "#39d353";
+  hashOut.style.boxShadow = "0 0 12px rgba(57,211,83,0.4)";
+  await sleep(500);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ANIMATION — Phase 3: Matrix Crack
+// ═══════════════════════════════════════════════════════════════
+
+async function phase3Matrix(password, willCrack) {
+  const matrixArea = document.getElementById("matrix-area");
+  const prog = document.getElementById("progress2");
+  const status = document.getElementById("status2");
+  matrixArea.innerHTML = "";
+
+  // Build char boxes
+  const boxes = [];
+  for (let i = 0; i < password.length; i++) {
+    const box = document.createElement("div");
+    box.className = "char-box scrambling";
+    box.textContent = CRACK_CHARS[randInt(0, CRACK_CHARS.length)];
+    matrixArea.appendChild(box);
+    boxes.push(box);
+  }
+
+  const totalDuration = willCrack ? Math.min(password.length * 120, 2000) : 1500;
+  status.textContent = "💻 Attempting character-by-character brute force…";
+
+  // Scramble all for a moment
+  const scrambleEnd = Date.now() + 800;
+  await new Promise(resolve => {
+    function scramble() {
+      if (animCancel) { resolve(); return; }
+      boxes.forEach(box => {
+        if (box.classList.contains("scrambling")) {
+          box.textContent = CRACK_CHARS[randInt(0, CRACK_CHARS.length)];
+        }
+      });
+      if (Date.now() < scrambleEnd) requestAnimationFrame(scramble);
+      else resolve();
+    }
+    requestAnimationFrame(scramble);
+  });
+
+  if (animCancel) return;
+
+  if (willCrack) {
+    // Reveal chars one by one
+    for (let i = 0; i < boxes.length; i++) {
+      if (animCancel) return;
+      boxes[i].classList.remove("scrambling");
+      boxes[i].classList.add("revealed");
+      boxes[i].textContent = password[i];
+      prog.style.width = ((i + 1) / boxes.length * 100) + "%";
+      status.textContent = `🔓 Cracked ${i+1}/${boxes.length} characters…`;
+
+      // Keep scrambling remaining
+      let scramCount = 0;
+      const scramInterval = setInterval(() => {
+        for (let j = i+1; j < boxes.length; j++) {
+          boxes[j].textContent = CRACK_CHARS[randInt(0, CRACK_CHARS.length)];
+        }
+        scramCount++;
+        if (scramCount > 3) clearInterval(scramInterval);
+      }, 60);
+
+      await sleep(Math.max(50, Math.min(180, 1600 / boxes.length)));
+    }
+    status.textContent = "✅ PASSWORD CRACKED!";
+    prog.style.background = "linear-gradient(90deg,#39d353,#00ff41)";
+  } else {
+    // Give up — show ? boxes
+    prog.style.width = "70%";
+    await sleep(400);
+    boxes.forEach(box => {
+      box.classList.remove("scrambling");
+      box.classList.add("question");
+      box.textContent = "?";
+    });
+    prog.style.width = "70%";
+    prog.style.background = "linear-gradient(90deg,#f85149,#f0883e)";
+    status.textContent = "❌ GAVE UP — too complex to crack in your lifetime!";
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN CRACK FLOW
+// ═══════════════════════════════════════════════════════════════
+
+async function startCrack() {
+  const password = document.getElementById("pw-input").value;
+  if (!password || cracking) return;
+
+  // Profanity check
+  if (containsProfanity(password)) {
+    const notice = document.getElementById("profanity-notice");
+    notice.classList.add("visible");
+    setTimeout(() => notice.classList.remove("visible"), 4000);
+    return;
+  }
+
+  cracking = true;
+  animCancel = false;
+  document.getElementById("crack-btn").disabled = true;
+  document.getElementById("pw-input").disabled = true;
+  document.getElementById("results-area").classList.remove("visible");
+
+  // Show animation area
+  document.getElementById("anim-area").classList.add("visible");
+  document.getElementById("anim-area").scrollIntoView({behavior:"smooth", block:"nearest"});
+
+  // Compute crack estimate
+  const algoSpeed = HASH_ALGOS[selectedAlgo].speed;
+  const {seconds, method} = estimateCrackTime(password, algoSpeed);
+  const tier = getStrengthTier(seconds);
+  const willCrack = seconds < 86400 * 365; // visually crack if under 1 year
+
+  // Reset progress
+  document.getElementById("progress1").style.width = "0%";
+  document.getElementById("progress2").style.width = "0%";
+
+  // Run phases
+  await phase1RainbowTable(password);
+  if (animCancel) return;
+  await sleep(300);
+  await phase2Hash(password);
+  if (animCancel) return;
+  await sleep(300);
+  await phase3Matrix(password, willCrack);
+  if (animCancel) return;
+
+  await sleep(600);
+  showResults(password, seconds, tier, method);
+
+  cracking = false;
+}
+
+function showResults(password, seconds, tier, method) {
+  const area = document.getElementById("results-area");
+  document.getElementById("verdict").textContent = tier.label;
+  document.getElementById("verdict").style.color = tier.color;
+  document.getElementById("crack-time-display").innerHTML =
+    `⏱ Crack time: <strong style="color:${tier.color}">${formatTime(seconds)}</strong>&nbsp; &nbsp;` +
+    `<span style="color:#8b949e;font-size:0.85rem">(using ${selectedAlgo} · attack: ${method.replace(/_/g," ")})</span>`;
+  document.getElementById("result-message").textContent = tier.message;
+  document.getElementById("result-tip").textContent = tier.tip;
+
+  // Strength meter
+  buildStrengthMeter(seconds, tier.color);
+
+  area.classList.add("visible");
+  area.scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+
+function buildStrengthMeter(seconds, activeColor) {
+  const track = document.getElementById("strength-track");
+  const segments = [
+    {label:"CRACKED",     max:1,           color:"#f85149"},
+    {label:"TERRIBLE",    max:60,          color:"#f85149"},
+    {label:"WEAK",        max:3600,        color:"#f0883e"},
+    {label:"FAIR",        max:86400,       color:"#f0883e"},
+    {label:"MEDIUM",      max:86400*30,    color:"#e3b341"},
+    {label:"STRONG",      max:86400*365*10,color:"#39d353"},
+    {label:"VERY STRONG", max:86400*365*1e6,color:"#39d353"},
+    {label:"UNBREAKABLE", max:Infinity,    color:"#bc8cff"},
+  ];
+
+  track.innerHTML = "";
+  segments.forEach((seg, i) => {
+    const div = document.createElement("div");
+    div.className = "strength-segment";
+    div.style.background = seconds >= (i === 0 ? 0 : segments[i-1].max) && seconds < seg.max
+      ? seg.color : seg.color + "33";
+    div.style.borderRight = i < segments.length-1 ? "1px solid #0d1117" : "none";
+    div.title = seg.label;
+    track.appendChild(div);
+  });
+}
+
+function resetApp() {
+  animCancel = true;
+  cracking = false;
+  document.getElementById("pw-input").value = "";
+  document.getElementById("pw-input").disabled = false;
+  document.getElementById("crack-btn").disabled = true;
+  document.getElementById("anim-area").classList.remove("visible");
+  document.getElementById("results-area").classList.remove("visible");
+  document.getElementById("stat-len").textContent = "0";
+  ["stat-lower","stat-upper","stat-digit","stat-sym"].forEach(id => document.getElementById(id).textContent = "✗");
+  const badge = document.getElementById("strength-badge");
+  badge.textContent = "—";
+  badge.style.cssText = "";
+  document.getElementById("hash-value").textContent = "—";
+  document.getElementById("hash-value").style.color = "#8b949e";
+  document.getElementById("progress1").style.width = "0%";
+  document.getElementById("progress2").style.width = "0%";
+  document.getElementById("rainbow-table").innerHTML = "";
+  document.getElementById("matrix-area").innerHTML = "";
+  document.getElementById("hash-in").textContent = "INPUT";
+  document.getElementById("hash-out").textContent = "OUTPUT";
+  document.getElementById("hash-out").style.boxShadow = "";
+  updateAlgoBars();
+  document.getElementById("pw-input").focus();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STARFIELD
+// ═══════════════════════════════════════════════════════════════
+
+function initStarfield() {
+  const canvas = document.getElementById("starfield");
+  const ctx = canvas.getContext("2d");
+  const stars = [];
+
+  function resize() {
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+  }
+  resize();
+  window.addEventListener("resize", resize);
+
+  for (let i = 0; i < 120; i++) {
+    stars.push({
+      x: Math.random(),
+      y: Math.random(),
+      r: Math.random() * 1.5 + 0.3,
+      opacity: Math.random() * 0.7 + 0.1,
+      speed: Math.random() * 0.3 + 0.05,
+      phase: Math.random() * Math.PI * 2,
+    });
+  }
+
+  function draw(t) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    stars.forEach(s => {
+      const twinkle = 0.5 + 0.5 * Math.sin(t * 0.001 * s.speed + s.phase);
+      ctx.beginPath();
+      ctx.arc(s.x * canvas.width, s.y * canvas.height, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${s.opacity * twinkle})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+
+document.addEventListener("DOMContentLoaded", () => {
+  initStarfield();
+  updateAlgoBars();
+
+  const input = document.getElementById("pw-input");
+  input.addEventListener("input", updateLiveStats);
+  input.addEventListener("keydown", e => { if (e.key === "Enter" && !document.getElementById("crack-btn").disabled) startCrack(); });
+  input.focus();
+});
+</script>
+</body>
+</html>
