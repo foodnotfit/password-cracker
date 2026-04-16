@@ -1205,6 +1205,7 @@ class PasswordCrackerApp:
         self.cracking = True
         self._animation_done = False
         self.cancel_crack = False
+        self._final_display = None  # Reset so animation frames draw freely
         self.crack_btn.config(state="disabled", bg=C["dim"])
         self.password_entry.config(state="disabled")
 
@@ -1522,7 +1523,13 @@ class PasswordCrackerApp:
 
     def update_crack_display(self, display, cracked, pw_len, progress,
                               status, is_timeout):
-        """Update the crack canvas — called directly from tick(), always on main thread."""
+        """Update crack canvas. If result already shown, restore it instead of drawing scramble."""
+        # If a final result has been committed, NEVER draw scramble over it.
+        # Any stale animation frame that slips through will restore the correct display.
+        if getattr(self, '_final_display', None) is not None:
+            self._draw_cracked_canvas(self._final_display, len(self._final_display))
+            return
+
         self.crack_canvas.delete("all")
         canvas_w = self.crack_canvas.winfo_width()
         if canvas_w < 10:
@@ -1617,6 +1624,8 @@ class PasswordCrackerApp:
     def show_cracked_result(self, display, pw_len, crack_seconds,
                              label, color, message, tip, attack_label="brute-force"):
         """Password was cracked. display must be list(password) — never a scramble array."""
+        # Commit the final display — any stale animation frames will restore this
+        self._final_display = list(display)
         self._draw_cracked_canvas(display, pw_len)
 
         # Full progress bar in red/orange
