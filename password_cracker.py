@@ -1476,6 +1476,10 @@ class PasswordCrackerApp:
         attempts = 0
         frame = 0
         self._animation_done = False
+        # Generation counter — increments when animation ends.
+        # update_crack_display checks it matches; stale queued calls self-discard.
+        self._anim_generation = getattr(self, '_anim_generation', 0) + 1
+        my_generation = self._anim_generation
 
         while time.time() - start_time < anim_duration and not self.cancel_crack:
             elapsed = time.time() - start_time
@@ -1493,7 +1497,7 @@ class PasswordCrackerApp:
                 if not cracked[i]:
                     display[i] = random.choice(CRACK_CHARS)
 
-            # Update UI from main thread
+            # Update UI from main thread — pass generation so stale calls self-discard
             display_copy = list(display)
             cracked_copy = list(cracked)
             progress = min(elapsed / anim_duration, 1.0)
@@ -1506,11 +1510,14 @@ class PasswordCrackerApp:
 
             self.root.after(0, self.update_crack_display,
                             display_copy, cracked_copy, pw_len, progress,
-                            status, is_timeout)
+                            status, is_timeout, my_generation)
 
             time.sleep(0.05)  # ~20fps
 
         # ── FINAL RESULT ──
+        # Increment generation FIRST — all queued update_crack_display calls
+        # from this run will see a mismatched generation and silently discard.
+        self._anim_generation += 1
         self._animation_done = True
 
         if is_timeout:
@@ -1542,8 +1549,11 @@ class PasswordCrackerApp:
     # ─── UI update helpers (called from main thread) ─────────────────────
 
     def update_crack_display(self, display, cracked, pw_len, progress,
-                              status, is_timeout):
-        # ⚠️ Guard: if animation is done, NEVER overwrite the result canvas
+                              status, is_timeout, generation=None):
+        # ⚠️ Stale-call guard: discard if generation doesn't match current run
+        # This kills every queued frame from a previous animation run.
+        if generation is not None and generation != getattr(self, '_anim_generation', None):
+            return
         if getattr(self, '_animation_done', False):
             return
         self.crack_canvas.delete("all")
