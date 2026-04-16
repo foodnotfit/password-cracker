@@ -539,6 +539,29 @@ footer{text-align:center;padding:14px;color:#30363d;font-size:0.8rem;background:
       <div class="strength-track" id="strength-track"></div>
     </div>
 
+    <!-- QUANTUM vs CLASSICAL COMPARISON -->
+    <div id="quantum-compare" style="background:#0d1117;border:2px solid #39c5cf;border-radius:10px;padding:16px;margin-top:20px;text-align:left;display:none">
+      <div style="font-size:0.8rem;font-weight:700;color:#39c5cf;letter-spacing:1px;margin-bottom:10px">⚛️ CLASSICAL vs QUANTUM ATTACK COMPARISON</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div style="background:#161b22;border-radius:8px;padding:12px;border:1px solid #30363d">
+          <div style="font-size:0.75rem;color:#8b949e;margin-bottom:4px">💻 Classical GPU (RTX 4090)</div>
+          <div id="qc-classical" style="font-size:1.2rem;font-weight:700;color:#e3b341">—</div>
+          <div style="font-size:0.72rem;color:#8b949e;margin-top:4px">Brute-force / dictionary attack</div>
+        </div>
+        <div style="background:#161b22;border-radius:8px;padding:12px;border:1px solid #39c5cf">
+          <div style="font-size:0.75rem;color:#8b949e;margin-bottom:4px">⚛️ Quantum Computer (Grover's)</div>
+          <div id="qc-quantum" style="font-size:1.2rem;font-weight:700;color:#39c5cf">—</div>
+          <div style="font-size:0.72rem;color:#8b949e;margin-top:4px">√N speedup via superposition</div>
+        </div>
+      </div>
+      <div id="qc-pqc" style="font-weight:700;font-size:0.85rem;margin-bottom:8px">—</div>
+      <div id="qc-note" style="font-size:0.76rem;color:#8b949e;border-top:1px solid #21262d;padding-top:8px;font-style:italic">—</div>
+      <div style="font-size:0.72rem;color:#8b949e;margin-top:8px">
+        ⚠️ Quantum estimate assumes ~1B quantum ops/sec (near-term hardware). Real quantum computers today (2026) cannot yet break passwords at scale — this shows the <em>future threat model</em>.
+        <br>Grover's algorithm provides O(√N) speedup for brute-force search, halving effective bit-security. Memory-hard KDFs (bcrypt, Argon2) neutralize this by requiring quantum RAM proportional to memory cost.
+      </div>
+    </div>
+
   </div>
 
   <!-- RESET BUTTON — always visible after crack, outside results scroll area -->
@@ -1653,6 +1676,54 @@ function showResults(password, seconds, tier, method) {
   // Strength meter
   buildStrengthMeter(seconds, tier.color);
 
+  // Quantum vs Classical comparison — always shown in results
+  const algoInfo = HASH_ALGOS[selectedAlgo];
+  const qcPanel = document.getElementById("quantum-compare");
+  if (algoInfo) {
+    const classicalSecs = seconds; // already display-scaled
+
+    let quantumSecs;
+    if (algoInfo.quantum >= 1.0) {
+      // Memory-hard: Grover's √N requires quantum RAM proportional to work factor — neutralized
+      quantumSecs = classicalSecs;
+    } else {
+      // Grover's √N speedup: quantum ops ≈ 1B/sec near-term
+      const QUANTUM_OPS = 1e9;
+      const speedup = Math.sqrt(algoInfo.speed / QUANTUM_OPS);
+      quantumSecs = classicalSecs / Math.max(1, speedup);
+    }
+
+    document.getElementById("qc-classical").textContent = formatTime(classicalSecs);
+    document.getElementById("qc-quantum").textContent = formatTime(quantumSecs);
+
+    const pqcEl = document.getElementById("qc-pqc");
+    const noteEl = document.getElementById("qc-note");
+
+    if (algoInfo.pqc && quantumSecs > 86400 * 365 * 100) {
+      pqcEl.textContent = "✅ QUANTUM SAFE — algorithm + password resist near-future quantum attacks";
+      pqcEl.style.color = "#39d353";
+    } else if (algoInfo.pqc) {
+      pqcEl.textContent = "⚠️ ALGORITHM IS PQC-SAFE — but password is too weak. Stronger password needed.";
+      pqcEl.style.color = "#e3b341";
+    } else if (quantumSecs < 3600) {
+      pqcEl.textContent = "❌ QUANTUM VULNERABLE — this hash + password falls in hours on a quantum computer";
+      pqcEl.style.color = "#f85149";
+    } else {
+      pqcEl.textContent = "⚠️ QUANTUM RISK — quantum computer dramatically reduces crack time for this hash";
+      pqcEl.style.color = "#f0883e";
+    }
+
+    if (algoInfo.quantum >= 1.0) {
+      const speedupRatio = Math.round(classicalSecs / Math.max(quantumSecs, 0.001));
+      noteEl.textContent = selectedAlgo + " is memory-hard. Grover's algorithm requires O(√N) quantum RAM operations proportional to its work factor — exceeds near-term qubit memory. Quantum speedup ≈ 0×. Classical and quantum resistance are effectively identical.";
+    } else {
+      const speedupRatio = Math.max(1, Math.round(classicalSecs / Math.max(quantumSecs, 0.001)));
+      noteEl.textContent = selectedAlgo + " is vulnerable to Grover's algorithm. A near-future ~1B quantum-ops/sec machine provides ~√N speedup, reducing crack time by ~" + speedupRatio + "×. Solution: switch to bcrypt or Argon2 (memory-hard, Grover-resistant) + use a strong passphrase.";
+    }
+
+    qcPanel.style.display = "block";
+  }
+
   area.classList.add("visible");
   area.scrollIntoView({behavior:"smooth", block:"nearest"});
   document.getElementById("reset-btn-wrap").style.display = "block";
@@ -1690,6 +1761,7 @@ function resetApp() {
   document.getElementById("crack-btn").disabled = true;
   document.getElementById("anim-area").classList.remove("visible");
   document.getElementById("results-area").classList.remove("visible");
+  document.getElementById("quantum-compare").style.display = "none";
   document.getElementById("stat-len").textContent = "0";
   ["stat-lower","stat-upper","stat-digit","stat-sym"].forEach(id => document.getElementById(id).textContent = "✗");
   const badge = document.getElementById("strength-badge");
