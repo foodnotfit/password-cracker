@@ -778,6 +778,8 @@ class PasswordCrackerApp:
         # State
         self.cracking = False
         self.cancel_crack = False
+        self._anim_after_ids = []  # Track animation after() IDs for cancellation
+        self._final_display = None
         self.show_password = False
 
         self.build_ui()
@@ -1205,7 +1207,8 @@ class PasswordCrackerApp:
         self.cracking = True
         self._animation_done = False
         self.cancel_crack = False
-        self._final_display = None  # Reset so animation frames draw freely
+        self._final_display = None
+        self._anim_after_ids = []
         self.crack_btn.config(state="disabled", bg=C["dim"])
         self.password_entry.config(state="disabled")
 
@@ -1495,14 +1498,19 @@ class PasswordCrackerApp:
             status = (f"[{attack_label}] {attempts:,} combinations... ({progress*100:.0f}%)"
                       if is_timeout else f"[{attack_label}] {attempts:,} attempts...")
 
-            self.root.after(0, self.update_crack_display,
-                            display_copy, cracked_copy, pw_len, progress,
-                            status, is_timeout)
+            aid = self.root.after(0, self.update_crack_display,
+                                  display_copy, cracked_copy, pw_len, progress,
+                                  status, is_timeout)
+            self._anim_after_ids.append(aid)
             time.sleep(0.05)
 
-        # Sleep long enough for ALL queued animation root.after(0,...) calls to drain
-        # before we schedule the result. 0.2s >> one event-loop cycle.
-        time.sleep(0.2)
+        # Cancel every queued animation frame — none can fire after this point
+        for aid in self._anim_after_ids:
+            try:
+                self.root.after_cancel(aid)
+            except Exception:
+                pass
+        self._anim_after_ids = []
 
         # Always build result from the original password string — NEVER from display[]
         if is_timeout:
