@@ -125,21 +125,35 @@ C = {
 CRACK_CHARS = string.ascii_uppercase + string.digits + "!@#$%&*"
 
 # ─── Attack Speed Constants ──────────────────────────────────────────────
-# Offline GPU cluster speeds — fast/unsalted hashes only
-# Online attacks: rate-limited to ~10-1,000 guesses/min (lockouts, MFA, throttling)
-# Do NOT treat these as guaranteed crack times
-GUESSES_PER_SEC_BRUTE = 10_000_000_000   # 10B/sec - GPU cluster on fast hashes
-GUESSES_PER_SEC_DICT  = 100_000_000_000  # 100B/sec - dictionary/rule-based (smaller keyspace)
-DICTIONARY_SIZE       = 200_000          # ~200k common English words
-RULE_MULTIPLIER       = 1_000           # leet speak + appends + case variants
+# Source: Hashcat benchmarks on RTX 4090 (2023–2024), Jeremi Gosney research,
+#         NIST SP 800-63B, academic cracking studies (Bonneau 2012, Dell'Amico 2010).
+# These represent a single RTX 4090 — a realistic serious individual attacker.
+# Nation-state/cloud attackers: multiply by 100–10,000×.
+# Online attacks: rate-limited to ~3–100 guesses/min per NIST 800-63B (lockouts/MFA).
+# Human-chosen passwords are far more predictable than entropy math suggests.
+# Do NOT treat these as guaranteed crack times — they are rough approximations.
+#
+# IMPORTANT: Strength labels (WEAK/FAIR/STRONG etc.) are always based on the
+# password QUALITY score using the fast-hash baseline (MD5 speed), independent
+# of the selected hash algorithm. The hash algorithm affects how long cracking
+# takes, but does NOT make a weak password pattern strong.
+
+GUESSES_PER_SEC_BRUTE = 164_000_000_000   # MD5: 164 GH/s  (RTX 4090, Hashcat 6.x)
+GUESSES_PER_SEC_DICT  = 500_000_000_000   # Rule-based MD5: ~500 GH/s (smaller keyspace)
+DICTIONARY_SIZE       = 200_000           # ~200k common words (HaveIBeenPwned-style)
+RULE_MULTIPLIER       = 1_000             # leet + appends + case combos
+NAME_DICT_SIZE        = 500_000           # ~500k first+last names for targeted name attacks
 
 # ─── Hash Algorithm Table ────────────────────────────────────────────────
+# Speeds: single RTX 4090, Hashcat 6.x benchmarks (hashcat.net/wiki/doku.php?id=hashcat)
+# bcrypt cost=10 is the NIST/industry-recommended minimum work factor (2024).
+# Argon2id speed varies by parameters; 800 H/s reflects default memory settings.
 HASH_ALGORITHMS = {
-    "MD5":     {"speed": 100_000_000_000, "color": "#f85149", "desc": "Ancient, unsalted — ~100B/sec offline (never use for passwords)"},
-    "SHA-1":   {"speed":  10_000_000_000, "color": "#f0883e", "desc": "Deprecated — ~10B/sec offline (not suitable for password storage)"},
-    "SHA-256": {"speed":   3_000_000_000, "color": "#e3b341", "desc": "Unsalted SHA-256 — ~3B/sec offline (must use salted+stretched form)"},
-    "bcrypt":  {"speed":         100_000, "color": "#39d353", "desc": "Adaptive KDF — ~100K/sec offline (strong, use cost factor 12+)"},
-    "Argon2":  {"speed":           1_000, "color": "#bc8cff", "desc": "NIST-recommended KDF — ~1K/sec offline (preferred: Argon2id)"},
+    "MD5":     {"speed": 164_000_000_000, "color": "#f85149", "desc": "Ancient, unsalted — 164 GH/s offline (never use for passwords)"},
+    "SHA-1":   {"speed":  56_900_000_000, "color": "#f0883e", "desc": "Deprecated — 56.9 GH/s offline (not suitable for password storage)"},
+    "SHA-256": {"speed":  22_800_000_000, "color": "#e3b341", "desc": "Unsalted SHA-256 — 22.8 GH/s offline (must use salted+stretched form)"},
+    "bcrypt":  {"speed":           5_750, "color": "#39d353", "desc": "Adaptive KDF (cost=10) — 5,750 H/s offline (strong; use cost≥10)"},
+    "Argon2":  {"speed":             800, "color": "#bc8cff", "desc": "NIST-recommended KDF — ~800 H/s offline (preferred: Argon2id)"},
 }
 
 def _compute_hash(password, algo):
@@ -637,16 +651,35 @@ def estimate_crack_time(password, hash_speed=None):
 
     Returns the FASTEST time across all models (worst case for defender).
 
-    If hash_speed is provided (guesses/sec), it overrides the default speed
-    constants for ALL attack phases.
+    IMPORTANT: The STRENGTH LABEL (WEAK/FAIR/STRONG etc.) is always computed
+    using the fast-hash (MD5) baseline speed, regardless of the selected hash
+    algorithm. This reflects PASSWORD QUALITY — how guessable the pattern is.
+    The hash algorithm affects HOW LONG cracking takes in the per-algo display,
+    but does NOT make a weak password pattern strong.
+
+    Source speeds: Hashcat RTX 4090 benchmarks (hashcat.net), Gosney research.
     """
     pw_len = len(password)
     pw_lower = password.lower()
     charset_size = _compute_charset_size(password)
 
-    # Determine effective speeds
-    eff_brute = hash_speed if hash_speed is not None else GUESSES_PER_SEC_BRUTE
-    eff_dict  = hash_speed if hash_speed is not None else GUESSES_PER_SEC_DICT
+    # QUALITY speed: always MD5 baseline — reflects pattern strength, not hash protection
+    # Used for: strength tier, all dictionary/pattern phases
+    quality_brute = GUESSES_PER_SEC_BRUTE   # 164 GH/s MD5
+    quality_dict  = GUESSES_PER_SEC_DICT    # 500 GH/s rule-based MD5
+
+    # DISPLAY speed: the selected hash algorithm — used for the time display only
+    display_brute = hash_speed if hash_speed is not None else GUESSES_PER_SEC_BRUTE
+    display_dict  = hash_speed if hash_speed is not None else GUESSES_PER_SEC_DICT
+
+    # For quality scoring, always use the fast baseline (worst case for attacker = fast hash)
+    eff_brute = quality_brute
+    eff_dict  = quality_dict
+
+    # Cap DICTIONARY_SIZE to a realistic named-list size for scoring purposes.
+    # The loaded wordlist can grow to millions with leet variants — but a real
+    # dictionary/name attack uses curated lists (~200k–500k), not brute enumeration.
+    eff_dict_size = min(DICTIONARY_SIZE, 500_000)
 
     # ── Phase 1: Instant / near-instant catches ──────────────────────────
 
@@ -697,7 +730,7 @@ def estimate_crack_time(password, hash_speed=None):
         if base_lower in COMMON_WORDS or base_deleeted in COMMON_WORDS:
             suffix_combos = max(1, 10 ** max(len(suffix), 1)) if suffix else 1
             # Dictionary + rules attack
-            combos = DICTIONARY_SIZE * RULE_MULTIPLIER * suffix_combos
+            combos = eff_dict_size * RULE_MULTIPLIER * suffix_combos
             t = combos / eff_dict
             if t < best_time:
                 best_time = t
@@ -705,7 +738,7 @@ def estimate_crack_time(password, hash_speed=None):
 
     # (d) Check if the de-leeted password is a dictionary word
     if len(deleeted) >= 3 and deleeted in COMMON_WORDS:
-        combos = DICTIONARY_SIZE * RULE_MULTIPLIER
+        combos = eff_dict_size * RULE_MULTIPLIER
         t = combos / eff_dict
         if t < best_time:
             best_time = t
@@ -717,7 +750,7 @@ def estimate_crack_time(password, hash_speed=None):
     leftover = pw_len - total_word_chars
     if len(words_found) >= 2 and leftover <= 4:
         # Combination attack: dictionary^N × small brute-force for leftovers
-        combos = (DICTIONARY_SIZE ** len(words_found)) * (94 ** leftover if leftover > 0 else 1)
+        combos = (eff_dict_size ** len(words_found)) * (94 ** leftover if leftover > 0 else 1)
         t = combos / eff_dict
         if t < best_time:
             best_time = t
@@ -732,22 +765,26 @@ def estimate_crack_time(password, hash_speed=None):
             best_method = "pin"
 
     # (g) Name/word concatenation — e.g. "JasonMoore", "CarlosEmbury"
-    # These are highly guessable via targeted social engineering + dictionary attacks
-    # even if they are long — two known names = ~dict^2 not brute-force
+    # Name+name combos are highly guessable via targeted social + dictionary attacks.
+    # A focused name list attack: first+last = ~500k × 500k = 250B combos
+    # At 500 GH/s rule-based: ~0.5 seconds. At MD5: ~1.5 seconds.
+    # These CANNOT score as "Strong" regardless of character count.
     deleeted_full = _deleet(password.lower())
     words_in_full = _find_dictionary_words(deleeted_full)
     total_found_chars = sum(len(w) for w in words_in_full)
     pw_alpha_len = sum(1 for c in deleeted_full if c.isalpha())
     if pw_alpha_len > 0 and total_found_chars >= pw_alpha_len * 0.85:
         if len(words_in_full) >= 2:
-            combos = (DICTIONARY_SIZE ** len(words_in_full)) * (
+            # Use NAME_DICT_SIZE (500k) for name-targeted attacks — more accurate
+            # than inflated DICTIONARY_SIZE which includes leet variants
+            combos = (NAME_DICT_SIZE ** len(words_in_full)) * (
                 94 ** max(0, pw_len - total_found_chars))
             t = combos / eff_dict
             if t < best_time:
                 best_time = t
                 best_method = "multi_word"
         elif len(words_in_full) == 1:
-            combos = DICTIONARY_SIZE * RULE_MULTIPLIER
+            combos = eff_dict_size * RULE_MULTIPLIER
             t = combos / eff_dict
             if t < best_time:
                 best_time = t
@@ -762,7 +799,20 @@ def estimate_crack_time(password, hash_speed=None):
         best_time = brute_time
         best_method = "brute_force"
 
-    return (best_time, charset_size, best_method)
+    # best_time is always the QUALITY score (fast-hash MD5 baseline).
+    # If the caller passed a hash_speed (e.g. bcrypt/Argon2), also compute
+    # the display time — how long it would take with that specific algorithm.
+    if hash_speed is not None and hash_speed < GUESSES_PER_SEC_BRUTE:
+        # Scale: preserve the same attack method's ratio but apply hash slowdown
+        speed_ratio = hash_speed / GUESSES_PER_SEC_BRUTE
+        display_time = best_time / speed_ratio
+    else:
+        display_time = best_time
+
+    # Return: (quality_seconds, display_seconds, charset_size, method)
+    # quality_seconds → always used for get_strength_tier() / label
+    # display_seconds → used for time strings shown to user
+    return (best_time, display_time, charset_size, best_method)
 
 
 def format_time(seconds):
@@ -1183,8 +1233,8 @@ class PasswordCrackerApp:
             self.update_algo_comparison("")
         else:
             hash_speed = HASH_ALGORITHMS[algo]["speed"]
-            secs, _, _ = estimate_crack_time(pw, hash_speed=hash_speed)
-            label, color, _, _ = get_strength_tier(secs)
+            quality_secs, _display, _, _ = estimate_crack_time(pw, hash_speed=hash_speed)
+            label, color, _, _ = get_strength_tier(quality_secs)
             self.live_strength.config(text=label, fg=color)
             self.update_algo_comparison(pw)
 
@@ -1219,10 +1269,10 @@ class PasswordCrackerApp:
             is_selected = (algo == selected_algo)
 
             if pw:
-                secs, _, _ = estimate_crack_time(pw, hash_speed=info["speed"])
-                fill = secs_to_fill(secs)
-                time_str = format_time(secs)
-                tier_label, tier_color, _, _ = get_strength_tier(secs)
+                _quality, display_secs, _, _ = estimate_crack_time(pw, hash_speed=info["speed"])
+                fill = secs_to_fill(display_secs)
+                time_str = format_time(display_secs)
+                tier_label, tier_color, _, _ = get_strength_tier(_quality)
             else:
                 fill = 0.0
                 time_str = "—"
@@ -1303,10 +1353,13 @@ class PasswordCrackerApp:
         self.clear_meter()
 
         # Calculate crack time using selected hash algorithm speed
+        # quality_secs → always MD5 baseline → used for strength label
+        # display_secs → selected algo speed → used for time strings shown to user
         algo = self.hash_algo_var.get()
         hash_speed = HASH_ALGORITHMS[algo]["speed"]
-        crack_seconds, charset_size, method = estimate_crack_time(pw, hash_speed=hash_speed)
-        strength_label, strength_color, message, tip = get_strength_tier(crack_seconds)
+        quality_secs, display_secs, charset_size, method = estimate_crack_time(pw, hash_speed=hash_speed)
+        crack_seconds = display_secs   # shown in UI time strings
+        strength_label, strength_color, message, tip = get_strength_tier(quality_secs)
 
         # Map method to human-readable attack label
         method_labels = {
