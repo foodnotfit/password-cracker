@@ -698,11 +698,27 @@ async function phase3Matrix(password, willCrack) {
     boxes.push(box);
   }
 
-  const totalDuration = willCrack ? Math.min(password.length * 120, 2000) : 1500;
+  const BRUTE_FORCE_SECS = 30; // Show 30-second brute force attempt for strong passwords
+  const totalDuration = willCrack ? Math.min(password.length * 120, 2000) : BRUTE_FORCE_SECS * 1000;
   status.textContent = "💻 Attempting character-by-character brute force…";
 
+  // For strong passwords, show a live countdown while scrambling
+  let countdownInterval = null;
+  if (!willCrack) {
+    let remaining = BRUTE_FORCE_SECS;
+    status.textContent = `💻 Brute-forcing… ${remaining}s remaining`;
+    countdownInterval = setInterval(() => {
+      remaining--;
+      if (remaining > 0) {
+        status.textContent = `💻 Brute-forcing… ${remaining}s remaining`;
+      } else {
+        clearInterval(countdownInterval);
+      }
+    }, 1000);
+  }
+
   // Scramble all for a moment
-  const scrambleEnd = Date.now() + 800;
+  const scrambleEnd = Date.now() + (willCrack ? 800 : totalDuration * 0.85);
   await new Promise(resolve => {
     function scramble() {
       if (animCancel) { resolve(); return; }
@@ -745,6 +761,7 @@ async function phase3Matrix(password, willCrack) {
     prog.style.background = "linear-gradient(90deg,#39d353,#00ff41)";
   } else {
     // Give up — show ? boxes
+    if (countdownInterval) clearInterval(countdownInterval);
     prog.style.width = "70%";
     await sleep(400);
     boxes.forEach(box => {
@@ -754,7 +771,7 @@ async function phase3Matrix(password, willCrack) {
     });
     prog.style.width = "70%";
     prog.style.background = "linear-gradient(90deg,#f85149,#f0883e)";
-    status.textContent = "❌ GAVE UP — too complex to crack in your lifetime!";
+    status.textContent = "❌ GAVE UP after 30 seconds — too complex to crack in your lifetime!";
   }
 }
 
