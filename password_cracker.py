@@ -1627,8 +1627,7 @@ class PasswordCrackerApp:
 
     def _draw_cracked_canvas(self, display, pw_len, color="green"):
         """Draw the final cracked password canvas. Called multiple times to defeat race."""
-        if not getattr(self, '_animation_done', False):
-            return  # Don't draw if animation somehow restarted
+        # No guard here — show_cracked_result already sets _animation_done before calling this
         self.crack_canvas.delete("all")
         canvas_w = self.crack_canvas.winfo_width()
         if canvas_w < 10: canvas_w = 800
