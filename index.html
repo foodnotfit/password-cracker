@@ -786,7 +786,11 @@ function estimateCrackTime(password, hashSpeed) {
   const bruteTime = bruteCombos / effBrute;
   if (bruteTime < bestTime) { bestTime = bruteTime; bestMethod = "brute_force"; }
 
-  return {seconds: bestTime, charsetSize, method: bestMethod};
+  // qualitySeconds: MD5 baseline — password pattern strength (for label)
+  // displaySeconds: scaled by selected hash — real-world cracking time with that algorithm
+  const speedRatio = (displaySpeed > 0) ? displaySpeed / GUESSES_PER_SEC_BRUTE : 1;
+  const displaySeconds = bestTime / speedRatio;
+  return {seconds: bestTime, qualitySeconds: bestTime, displaySeconds, charsetSize, method: bestMethod};
 }
 
 function formatTime(seconds) {
@@ -867,7 +871,7 @@ function updateQuantumPanel(password) {
   if (!password) return;
   const algo = selectedAlgo;
   const info = HASH_ALGOS[algo];
-  const classicalSecs = estimateCrackTime(password, info.speed).seconds;
+  const classicalSecs = estimateCrackTime(password, info.speed).displaySeconds;
 
   let quantumSecs;
   if (info.quantum >= 1.0) {
@@ -1217,10 +1221,10 @@ function updateLiveStats() {
     return;
   }
 
-  const {seconds} = estimateCrackTime(pw, HASH_ALGOS[selectedAlgo].speed);
-  const tier = getStrengthTier(seconds);
+  const {qualitySeconds: qs, displaySeconds: ds} = estimateCrackTime(pw, HASH_ALGOS[selectedAlgo].speed);
+  const tier = getStrengthTier(qs);
   const badge = document.getElementById("strength-badge");
-  badge.textContent = `${tier.label} · ${formatTime(seconds)}`;
+  badge.textContent = `${tier.label} · ${formatTime(ds)}`;
   badge.style.cssText = `background:${tier.color}22;border:2px solid ${tier.color};color:${tier.color};padding:6px 18px;border-radius:8px;font-weight:700;font-size:0.9rem;transition:all 0.3s`;
 
   updateAlgoBars();
@@ -1247,7 +1251,7 @@ function updateAlgoBars() {
   // Compute max seconds (log scale) for bar sizing
   const times = algos.map(([, info]) => {
     if (pw.length === 0) return 0;
-    return estimateCrackTime(pw, info.speed).seconds;
+    return estimateCrackTime(pw, info.speed).displaySeconds;
   });
   const maxLog = Math.max(...times.map(t => Math.log10(Math.max(t, 0.0001))));
   const minLog = -3; // 0.001 seconds
@@ -1611,8 +1615,9 @@ async function startCrack() {
 
   // Compute crack estimate
   const algoSpeed = HASH_ALGOS[selectedAlgo].speed;
-  const {seconds, method} = estimateCrackTime(password, algoSpeed);
-  const tier = getStrengthTier(seconds);
+  const {qualitySeconds: _qs, displaySeconds: _ds, method} = estimateCrackTime(password, algoSpeed);
+  const seconds = _ds;
+  const tier = getStrengthTier(_qs);
   const willCrack = seconds < 86400 * 365; // visually crack if under 1 year
 
   // Reset progress
