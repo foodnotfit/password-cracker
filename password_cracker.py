@@ -1454,108 +1454,87 @@ class PasswordCrackerApp:
     def run_crack_animation(self, password, anim_duration, crack_seconds,
                             charset_size, is_timeout, strength_label,
                             strength_color, message, tip, attack_label="brute-force"):
-        """Runs the cracking animation, then shows results."""
+        """
+        Drive the crack animation entirely on the main thread via chained root.after.
+        No background thread → no queue buildup → no stale frames overwriting result.
+        """
         pw_len = len(password)
         cracked = [False] * pw_len
         display = [random.choice(CRACK_CHARS) for _ in range(pw_len)]
+        attempts = [0]  # mutable for closure
         start_time = time.time()
 
-        # For weak passwords, reveal characters progressively
-        # For strong passwords, never fully reveal (timeout)
         if not is_timeout:
-            # Schedule when each character gets "cracked"
             reveal_times = sorted([random.uniform(0.15, anim_duration * 0.85)
                                    for _ in range(pw_len)])
         else:
-            # Strong: reveal at most a couple early chars to tease, then stall
             partial = min(2, pw_len)
             reveal_times = sorted([random.uniform(0.3, anim_duration * 0.3)
                                    for _ in range(partial)])
-            reveal_times += [anim_duration + 99] * (pw_len - partial)  # never
+            reveal_times += [anim_duration + 99] * (pw_len - partial)
 
-        attempts = 0
-        frame = 0
-        self._animation_done = False
-        # Generation counter — increments when animation ends.
-        # update_crack_display checks it matches; stale queued calls self-discard.
-        self._anim_generation = getattr(self, '_anim_generation', 0) + 1
-        my_generation = self._anim_generation
+        def finish():
+            """Called once when animation time is up. Shows final result."""
+            self.crack_btn.config(state="normal", bg=C["green"])
+            self.password_entry.config(state="normal")
+            self.cracking = False
 
-        while time.time() - start_time < anim_duration and not self.cancel_crack:
+            if is_timeout:
+                final_display = [password[i] if cracked[i] else "?" for i in range(pw_len)]
+                self.show_timeout_result(
+                    final_display, cracked, pw_len, crack_seconds,
+                    strength_label, strength_color, message, tip, attack_label)
+            else:
+                # Always show the real password — never the scramble state
+                self.show_cracked_result(
+                    list(password), pw_len, crack_seconds,
+                    strength_label, strength_color, message, tip, attack_label)
+
+        def tick():
+            """One animation frame, scheduled entirely on the main thread."""
+            if self.cancel_crack:
+                finish()
+                return
+
             elapsed = time.time() - start_time
-            frame += 1
-            attempts += random.randint(50000, 200000)
+            if elapsed >= anim_duration:
+                finish()
+                return
 
-            # Check if any chars should be revealed
+            attempts[0] += random.randint(50000, 200000)
+
+            # Reveal chars on schedule
             for i in range(pw_len):
                 if not cracked[i] and elapsed >= reveal_times[i]:
                     cracked[i] = True
                     display[i] = password[i]
 
-            # Scramble unrevealed characters
+            # Scramble unrevealed chars
             for i in range(pw_len):
                 if not cracked[i]:
                     display[i] = random.choice(CRACK_CHARS)
 
-            # Update UI from main thread — pass generation so stale calls self-discard
-            display_copy = list(display)
-            cracked_copy = list(cracked)
-            progress = min(elapsed / anim_duration, 1.0)
-
+            progress = elapsed / anim_duration
             if is_timeout:
-                status = (f"[{attack_label}] {attempts:,} combinations... "
+                status = (f"[{attack_label}] {attempts[0]:,} combinations... "
                           f"({progress*100:.0f}% of time)")
             else:
-                status = f"[{attack_label}] {attempts:,} attempts..."
+                status = f"[{attack_label}] {attempts[0]:,} attempts..."
 
-            self.root.after(0, self.update_crack_display,
-                            display_copy, cracked_copy, pw_len, progress,
-                            status, is_timeout, my_generation)
+            self.update_crack_display(list(display), list(cracked), pw_len,
+                                      progress, status, is_timeout)
 
-            time.sleep(0.05)  # ~20fps
+            # Schedule next frame — 50ms = ~20fps
+            self.root.after(50, tick)
 
-        # ── FINAL RESULT ──
-        # Increment generation FIRST — all queued update_crack_display calls
-        # from this run will see a mismatched generation and silently discard.
-        self._anim_generation += 1
-        self._animation_done = True
-
-        if is_timeout:
-            final_display = []
-            for i in range(pw_len):
-                if cracked[i]:
-                    final_display.append(password[i])
-                else:
-                    final_display.append("?")
-            self.root.after(0, self.show_timeout_result,
-                            final_display, cracked, pw_len, crack_seconds,
-                            strength_label, strength_color, message, tip,
-                            attack_label)
-        else:
-            # Force all chars to password — never show scrambled chars in result
-            final_display = list(password)
-            # Set flag HERE (in background thread) before scheduling, so any
-            # pending root.after(update_crack_display) calls see it and bail
-            self._animation_done = True
-            self.root.after(0, self.show_cracked_result,
-                            final_display, pw_len, crack_seconds,
-                            strength_label, strength_color, message, tip,
-                            attack_label)
-
-        self.cracking = False
-        self.root.after(0, lambda: self.crack_btn.config(state="normal", bg=C["green"]))
-        self.root.after(0, lambda: self.password_entry.config(state="normal"))
+        # Kick off first frame
+        self.root.after(50, tick)
 
     # ─── UI update helpers (called from main thread) ─────────────────────
 
     def update_crack_display(self, display, cracked, pw_len, progress,
-                              status, is_timeout, generation=None):
-        # ⚠️ Stale-call guard: discard if generation doesn't match current run
-        # This kills every queued frame from a previous animation run.
-        if generation is not None and generation != getattr(self, '_anim_generation', None):
-            return
-        if getattr(self, '_animation_done', False):
-            return
+                              status, is_timeout):
+        """Update the crack canvas — called directly from tick(), always on main thread."""
         self.crack_canvas.delete("all")
         canvas_w = self.crack_canvas.winfo_width()
         if canvas_w < 10:
