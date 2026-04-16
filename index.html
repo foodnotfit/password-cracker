@@ -39,6 +39,38 @@ body{background:#0d1117;color:#f0f6fc;font-family:system-ui,-apple-system,BlinkM
 .stat-chip span{color:#f0f6fc;font-family:monospace}
 #strength-badge{padding:6px 18px;border-radius:8px;font-weight:700;font-size:0.9rem;transition:all 0.3s;background:#21262d;border:1px solid #30363d;color:#8b949e}
 
+/* MODE TABS */
+.mode-tabs{display:flex;gap:0;margin-bottom:16px;border:2px solid #30363d;border-radius:12px;overflow:hidden}
+.mode-tab{flex:1;padding:10px 16px;background:#0d1117;color:#8b949e;font-weight:700;font-size:0.9rem;cursor:pointer;border:none;transition:all 0.2s;text-align:center}
+.mode-tab:hover{background:#161b22;color:#f0f6fc}
+.mode-tab.active{background:#21262d;color:#f0f6fc;box-shadow:inset 0 -2px 0 #58a6ff}
+.mode-tab.active.hash-mode{box-shadow:inset 0 -2px 0 #f85149}
+
+/* HASH CRACK INPUT */
+#hash-crack-card{display:none}
+#hash-crack-card.visible{display:block}
+.hash-input-row{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+#hash-input{flex:1;padding:12px 16px;background:#0d1117;border:2px solid #30363d;border-radius:10px;color:#39c5cf;font-size:0.95rem;font-family:monospace;outline:none;transition:border-color 0.2s}
+#hash-input:focus{border-color:#f85149;box-shadow:0 0 0 3px rgba(248,81,73,0.12)}
+.hash-detected{font-size:0.82rem;color:#8b949e;margin-bottom:8px;font-family:monospace;min-height:20px}
+.hash-detected span{color:#e3b341;font-weight:700}
+
+/* HASH CRACK RESULT */
+.crack-result-card{background:#161b22;border:2px solid #30363d;border-radius:12px;padding:18px;margin-top:14px;display:none}
+.crack-result-card.visible{display:block}
+.crack-result-card.found{border-color:#39d353}
+.crack-result-card.not-found{border-color:#f0883e}
+.crack-result-title{font-size:0.88rem;font-weight:700;color:#8b949e;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+.crack-found-pw{font-size:2rem;font-weight:900;font-family:monospace;color:#39d353;margin:8px 0;word-break:break-all}
+.crack-explanation{background:#0d1117;border-radius:8px;padding:12px;margin-top:10px;font-size:0.85rem;line-height:1.6;color:#8b949e}
+.crack-explanation strong{color:#f0f6fc}
+.crack-explanation .attack-type{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.78rem;font-weight:700;margin-bottom:6px}
+.attack-rainbow{background:rgba(188,140,255,0.15);color:#bc8cff;border:1px solid #bc8cff}
+.attack-preimage{background:rgba(248,81,73,0.15);color:#f85149;border:1px solid #f85149}
+.attack-brute{background:rgba(240,136,62,0.15);color:#f0883e;border:1px solid #f0883e}
+.crack-progress-wrap{background:#21262d;border-radius:6px;height:8px;margin:8px 0;overflow:hidden}
+.crack-progress-bar{height:8px;border-radius:6px;background:linear-gradient(90deg,#bc8cff,#f85149);transition:width 0.1s}
+
 /* HASH SELECTOR */
 .hash-selector{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
 .hash-label{font-size:0.85rem;color:#8b949e;font-weight:600;white-space:nowrap}
@@ -162,8 +194,14 @@ footer{text-align:center;padding:14px;color:#30363d;font-size:0.8rem;background:
   <!-- PROFANITY NOTICE -->
   <div id="profanity-notice">⚠️ Let's keep it clean for Family Day! Please try a different password.</div>
 
+  <!-- MODE TABS -->
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="tab-password" onclick="switchMode('password')">🔑 Crack a Password</button>
+    <button class="mode-tab" id="tab-hash" onclick="switchMode('hash')">🧬 Crack a Hash</button>
+  </div>
+
   <!-- INPUT CARD -->
-  <div class="input-card">
+  <div class="input-card" id="password-card">
     <div class="section-label">🔑 Enter a Password</div>
     <div class="input-row">
       <input type="password" id="pw-input" placeholder="Type any password…" maxlength="64" autocomplete="off" spellcheck="false">
@@ -215,6 +253,23 @@ footer{text-align:center;padding:14px;color:#30363d;font-size:0.8rem;background:
     <div class="hash-display" id="live-hash">
       <span class="hash-label-inline">SHA-256 hash of your password (updates live):</span>
       <span id="hash-value" style="color:#8b949e">—</span>
+    </div>
+  </div>
+
+  <!-- HASH CRACK CARD -->
+  <div class="input-card" id="hash-crack-card">
+    <div class="section-label">🧬 Paste a Hash to Crack</div>
+    <div class="hash-input-row">
+      <input type="text" id="hash-input" placeholder="e.g. 5f4dcc3b5aa765d61d8327deb882cf99" maxlength="128" autocomplete="off" spellcheck="false" oninput="onHashInput()">
+      <button class="btn btn-crack" id="hash-crack-btn" onclick="startHashCrack()" disabled>🔓 CRACK HASH</button>
+    </div>
+    <div class="hash-detected" id="hash-detected">Paste a hash above to auto-detect the algorithm</div>
+    <div class="crack-progress-wrap" id="hash-progress-wrap" style="display:none">
+      <div class="crack-progress-bar" id="hash-progress-bar" style="width:0%"></div>
+    </div>
+    <div class="crack-result-card" id="crack-result">
+      <div class="crack-result-title">Result</div>
+      <div id="crack-result-body"></div>
     </div>
   </div>
 
@@ -588,6 +643,222 @@ function updateQuantumPanel(password) {
     noteEl.textContent = algo + " is vulnerable to Grover\'s algorithm (√N speedup). A ~1B quantum-ops/sec machine reduces your effective bit-security by half. Use bcrypt or Argon2 + a strong password for true quantum resistance.";
   }
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+// MODE SWITCHING
+// ═══════════════════════════════════════════════════════════════
+
+let currentMode = 'password';
+
+function switchMode(mode) {
+  currentMode = mode;
+  const pwCard  = document.getElementById('password-card');
+  const hashCard = document.getElementById('hash-crack-card');
+  const animArea = document.getElementById('anim-area');
+  const resArea  = document.getElementById('results-area');
+  const tabPw   = document.getElementById('tab-password');
+  const tabHash = document.getElementById('tab-hash');
+  if (mode === 'password') {
+    pwCard.style.display = '';
+    hashCard.classList.remove('visible');
+    tabPw.classList.add('active');
+    tabHash.classList.remove('active', 'hash-mode');
+  } else {
+    pwCard.style.display = 'none';
+    hashCard.classList.add('visible');
+    animArea.classList.remove('visible');
+    resArea.classList.remove('visible');
+    tabPw.classList.remove('active');
+    tabHash.classList.add('active', 'hash-mode');
+    document.getElementById('hash-input').focus();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HASH CRACKING — Rainbow Table Reverse Lookup
+// ═══════════════════════════════════════════════════════════════
+
+function detectHashAlgo(hashStr) {
+  const h = hashStr.trim().toLowerCase();
+  if (!/^[0-9a-f]+$/.test(h)) return null;
+  if (h.length === 32)  return {algo:'MD5',    bits:128};
+  if (h.length === 40)  return {algo:'SHA-1',  bits:160};
+  if (h.length === 64)  return {algo:'SHA-256',bits:256};
+  if (h.length === 96)  return {algo:'SHA-384',bits:384};
+  if (h.length === 128) return {algo:'SHA-512',bits:512};
+  return null;
+}
+
+function onHashInput() {
+  const raw = document.getElementById('hash-input').value.trim();
+  const det = document.getElementById('hash-detected');
+  const btn = document.getElementById('hash-crack-btn');
+  document.getElementById('crack-result').classList.remove('visible');
+  if (!raw) { det.innerHTML = 'Paste a hash above to auto-detect the algorithm'; btn.disabled = true; return; }
+  const info = detectHashAlgo(raw);
+  if (!info) { det.innerHTML = '<span style="color:#f85149">⚠ Not a valid hex hash — check for typos</span>'; btn.disabled = true; return; }
+  const vulnMap = {
+    'MD5':    {color:'#f85149',tag:'CRITICALLY BROKEN',note:'Collision attacks since 2004. Rainbow tables cover billions.'},
+    'SHA-1':  {color:'#f0883e',tag:'DEPRECATED',       note:'Deprecated by NIST. Preimage attacks feasible.'},
+    'SHA-256':{color:'#e3b341',tag:'ACCEPTABLE',       note:'Computationally secure but not designed for passwords. No salt.'},
+    'SHA-384':{color:'#39d353',tag:'STRONG',           note:'Strong but unsuitable for passwords — no key stretching.'},
+    'SHA-512':{color:'#39d353',tag:'STRONG',           note:'Strong but unsuitable for passwords — no key stretching.'},
+  };
+  const v = vulnMap[info.algo] || {color:'#8b949e',tag:'UNKNOWN',note:''};
+  det.innerHTML = `Detected: <span>${info.algo}</span> (${info.bits}-bit) &nbsp;<span style="color:${v.color};font-weight:700;background:rgba(0,0,0,0.3);padding:1px 7px;border-radius:4px">${v.tag}</span>&nbsp;<span style="color:#8b949e;font-style:italic;font-size:0.78rem">${v.note}</span>`;
+  btn.disabled = false;
+}
+
+async function computeHashStr(text, algo) {
+  const m = {'SHA-1':'SHA-1','SHA-256':'SHA-256','SHA-384':'SHA-384','SHA-512':'SHA-512'};
+  if (!m[algo]) return null;
+  const buf = await crypto.subtle.digest(m[algo], new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+function md5(s){
+  function sa(x,y){var l=(x&0xffff)+(y&0xffff),m=(x>>16)+(y>>16)+(l>>16);return(m<<16)|(l&0xffff)}
+  function rl(n,c){return(n<<c)|(n>>>(32-c))}
+  function cm(q,a,b,x,s,t){return sa(rl(sa(sa(a,q),sa(x,t)),s),b)}
+  function ff(a,b,c,d,x,s,t){return cm((b&c)|((~b)&d),a,b,x,s,t)}
+  function gg(a,b,c,d,x,s,t){return cm((b&d)|(c&(~d)),a,b,x,s,t)}
+  function hh(a,b,c,d,x,s,t){return cm(b^c^d,a,b,x,s,t)}
+  function ii(a,b,c,d,x,s,t){return cm(c^(b|(~d)),a,b,x,s,t)}
+  var str=unescape(encodeURIComponent(s)),b=[],n=str.length;
+  for(var i=0;i<n;i+=4)b.push((str.charCodeAt(i))|(str.charCodeAt(i+1)<<8)|(str.charCodeAt(i+2)<<16)|(str.charCodeAt(i+3)<<24));
+  b[n>>2]|=0x80<<((n%4)<<3);b[(((n+8)>>>6)<<4)+14]=n*8;
+  var a=1732584193,c=-271733879,d=-1732584194,e=271733878;
+  for(var i=0;i<b.length;i+=16){
+    var oa=a,ob=c,oc=d,od=e;
+    a=ff(a,c,d,e,b[i],7,-680876936);e=ff(e,a,c,d,b[i+1],12,-389564586);d=ff(d,e,a,c,b[i+2],17,606105819);c=ff(c,d,e,a,b[i+3],22,-1044525330);
+    a=ff(a,c,d,e,b[i+4],7,-176418897);e=ff(e,a,c,d,b[i+5],12,1200080426);d=ff(d,e,a,c,b[i+6],17,-1473231341);c=ff(c,d,e,a,b[i+7],22,-45705983);
+    a=ff(a,c,d,e,b[i+8],7,1770035416);e=ff(e,a,c,d,b[i+9],12,-1958414417);d=ff(d,e,a,c,b[i+10],17,-42063);c=ff(c,d,e,a,b[i+11],22,-1990404162);
+    a=ff(a,c,d,e,b[i+12],7,1804603682);e=ff(e,a,c,d,b[i+13],12,-40341101);d=ff(d,e,a,c,b[i+14],17,-1502002290);c=ff(c,d,e,a,b[i+15],22,1236535329);
+    a=gg(a,c,d,e,b[i+1],5,-165796510);e=gg(e,a,c,d,b[i+6],9,-1069501632);d=gg(d,e,a,c,b[i+11],14,643717713);c=gg(c,d,e,a,b[i],20,-373897302);
+    a=gg(a,c,d,e,b[i+5],5,-701558691);e=gg(e,a,c,d,b[i+10],9,38016083);d=gg(d,e,a,c,b[i+15],14,-660478335);c=gg(c,d,e,a,b[i+4],20,-405537848);
+    a=gg(a,c,d,e,b[i+9],5,568446438);e=gg(e,a,c,d,b[i+14],9,-1019803690);d=gg(d,e,a,c,b[i+3],14,-187363961);c=gg(c,d,e,a,b[i+8],20,1163531501);
+    a=gg(a,c,d,e,b[i+13],5,-1444681467);e=gg(e,a,c,d,b[i+2],9,-51403784);d=gg(d,e,a,c,b[i+7],14,1735328473);c=gg(c,d,e,a,b[i+12],20,-1926607734);
+    a=hh(a,c,d,e,b[i+5],4,-378558);e=hh(e,a,c,d,b[i+8],11,-2022574463);d=hh(d,e,a,c,b[i+11],16,1839030562);c=hh(c,d,e,a,b[i+14],23,-35309556);
+    a=hh(a,c,d,e,b[i+1],4,-1530992060);e=hh(e,a,c,d,b[i+4],11,1272893353);d=hh(d,e,a,c,b[i+7],16,-155497632);c=hh(c,d,e,a,b[i+10],23,-1094730640);
+    a=hh(a,c,d,e,b[i+13],4,681279174);e=hh(e,a,c,d,b[i],11,-358537222);d=hh(d,e,a,c,b[i+3],16,-722521979);c=hh(c,d,e,a,b[i+6],23,76029189);
+    a=hh(a,c,d,e,b[i+9],4,-640364487);e=hh(e,a,c,d,b[i+12],11,-421815835);d=hh(d,e,a,c,b[i+15],16,530742520);c=hh(c,d,e,a,b[i+2],23,-995338651);
+    a=ii(a,c,d,e,b[i],6,-198630844);e=ii(e,a,c,d,b[i+7],10,1126891415);d=ii(d,e,a,c,b[i+14],15,-1416354905);c=ii(c,d,e,a,b[i+5],21,-57434055);
+    a=ii(a,c,d,e,b[i+12],6,1700485571);e=ii(e,a,c,d,b[i+3],10,-1894986606);d=ii(d,e,a,c,b[i+10],15,-1051523);c=ii(c,d,e,a,b[i+1],21,-2054922799);
+    a=ii(a,c,d,e,b[i+8],6,1873313359);e=ii(e,a,c,d,b[i+15],10,-30611744);d=ii(d,e,a,c,b[i+6],15,-1560198380);c=ii(c,d,e,a,b[i+13],21,1309151649);
+    a=ii(a,c,d,e,b[i+4],6,-145523070);e=ii(e,a,c,d,b[i+11],10,-1120210379);d=ii(d,e,a,c,b[i+2],15,718787259);c=ii(c,d,e,a,b[i+9],21,-343485551);
+    a=sa(a,oa);c=sa(c,ob);d=sa(d,oc);e=sa(e,od);
+  }
+  return [a,c,d,e].map(n=>(n>>>0).toString(16).padStart(8,'0').match(/.{2}/g).reverse().join('')).join('');
+}
+
+let hashCracking = false;
+
+async function startHashCrack() {
+  if (hashCracking) return;
+  const raw = document.getElementById('hash-input').value.trim().toLowerCase();
+  const info = detectHashAlgo(raw);
+  if (!info) return;
+  hashCracking = true;
+  document.getElementById('hash-crack-btn').disabled = true;
+  const progressWrap = document.getElementById('hash-progress-wrap');
+  const progressBar  = document.getElementById('hash-progress-bar');
+  const resultCard   = document.getElementById('crack-result');
+  const resultBody   = document.getElementById('crack-result-body');
+  progressWrap.style.display = 'block';
+  progressBar.style.width = '0%';
+  resultCard.classList.remove('visible','found','not-found');
+
+  const allPasswords = [...COMMON_PASSWORDS];
+  let animIdx = 0;
+  const animInterval = setInterval(() => {
+    animIdx = Math.min(animIdx + 200, allPasswords.length);
+    progressBar.style.width = (animIdx / allPasswords.length * 85) + '%';
+  }, 60);
+
+  const hashFn = info.algo === 'MD5'
+    ? (pw) => Promise.resolve(md5(pw))
+    : (pw) => computeHashStr(pw, info.algo);
+
+  let found = null;
+  const BATCH = 2000;
+  for (let i = 0; i < allPasswords.length; i += BATCH) {
+    const batch = allPasswords.slice(i, i + BATCH);
+    const hashes = await Promise.all(batch.map(pw => hashFn(pw)));
+    for (let j = 0; j < batch.length; j++) {
+      if (hashes[j] === raw) { found = batch[j]; break; }
+    }
+    if (found) break;
+    await new Promise(r => setTimeout(r, 0));
+  }
+
+  clearInterval(animInterval);
+  progressBar.style.width = '100%';
+  await new Promise(r => setTimeout(r, 250));
+  progressWrap.style.display = 'none';
+
+  const vulnText = {
+    'MD5': {
+      broken: '<strong>MD5 is cryptographically broken.</strong> Designed in 1991 for file integrity — not passwords. ' +
+        '<br><br><strong>Attack used: Rainbow Table.</strong> Attackers precompute hashes for millions of known passwords. ' +
+        'Reversing this hash required zero brute-force — just a table lookup. ' +
+        'No salt means every account with this password has the identical hash. One table cracks all of them.' +
+        '<br><br><strong>Fix:</strong> bcrypt, Argon2id, or scrypt — intentionally slow, salted, key-stretched.',
+      safe: 'MD5 is broken but this password was not in our 71k table. A real attacker with 600M+ entries would likely find it. <strong>Never use MD5 for passwords.</strong>'
+    },
+    'SHA-1': {
+      broken: '<strong>SHA-1 is deprecated (NIST, 2011).</strong> Runs at ~10 billion hashes/sec on a GPU. ' +
+        '<br><br><strong>Attack used: Rainbow Table.</strong> This hash was precomputed and stored. ' +
+        'Real-world breach databases cover hundreds of millions of entries. ' +
+        'Without salting, all users with the same password share the same hash — one lookup, many victims.' +
+        '<br><br><strong>Fix:</strong> bcrypt, Argon2id with a unique random salt per user.',
+      safe: 'SHA-1 is deprecated but not in our 71k table. At 10B/sec with full RockYou + rules, a GPU would crack most passwords in minutes to hours. Never use SHA-1 for passwords.'
+    },
+    'SHA-256': {
+      broken: '<strong>SHA-256 is secure as a hash — but catastrophically wrong for passwords.</strong> ' +
+        'It runs at ~3 billion hashes/sec on a GPU. Speed is a feature for file integrity; it is a fatal flaw for passwords.' +
+        '<br><br><strong>Attack used: Rainbow Table.</strong> Even SHA-256 hashes of common passwords are precomputed and stored in breach databases. ' +
+        'No salting means identical passwords have identical hashes across all systems.' +
+        '<br><br><strong>Fix:</strong> Argon2id (NIST SP 800-63B recommended), bcrypt, or scrypt — memory-hard and intentionally slow.',
+      safe: 'SHA-256 is strong but not in our 71k table. At 3B/sec with wordlist + mutation rules, a GPU would crack most short passwords in minutes to days. Always use Argon2id or bcrypt for passwords.'
+    }
+  };
+
+  const defaultText = {
+    broken: 'Hash matched in rainbow table. This algorithm was not designed for password storage.',
+    safe: 'Not found in our 71k table. This algorithm is not recommended for passwords — use bcrypt or Argon2id.'
+  };
+
+  const t = vulnText[info.algo] || defaultText;
+  resultCard.classList.add('visible');
+
+  if (found) {
+    resultCard.classList.add('found');
+    resultBody.innerHTML =
+      '<div style="margin-bottom:8px"><span class="attack-type attack-rainbow">\u{1F308} RAINBOW TABLE ATTACK</span></div>' +
+      '<div style="color:#8b949e;font-size:0.85rem;margin-bottom:4px">Plaintext password recovered:</div>' +
+      '<div class="crack-found-pw">' + found + '</div>' +
+      '<div style="font-size:0.82rem;color:#8b949e;margin-bottom:10px">' +
+        info.algo + '(<code style="color:#39c5cf">' + found + '</code>) = <code style="color:#f85149;font-size:0.74rem;word-break:break-all">' + raw + '</code>' +
+      '</div>' +
+      '<div class="crack-explanation">' + t.broken + '</div>';
+  } else {
+    const estTime = {MD5:'milliseconds to hours','SHA-1':'seconds to days','SHA-256':'hours to years'};
+    const et = estTime[info.algo] || 'varies';
+    resultCard.classList.add('not-found');
+    resultBody.innerHTML =
+      '<div style="margin-bottom:8px"><span class="attack-type" style="background:rgba(57,211,83,0.1);color:#39d353;border:1px solid #39d353">\u2705 NOT IN RAINBOW TABLE</span></div>' +
+      '<div style="color:#8b949e;font-size:0.85rem;margin-bottom:10px">' +
+        'Searched <strong style="color:#f0f6fc">71,769 leaked passwords</strong> — no match.<br>' +
+        'A real attacker with 600M entries + GPU could crack this in <strong style="color:#e3b341">' + et + '</strong>.' +
+      '</div>' +
+      '<div class="crack-explanation">' + t.safe + '</div>';
+  }
+
+  hashCracking = false;
+  document.getElementById('hash-crack-btn').disabled = false;
+}
+
 
 function toggleShow() {
   showingPassword = !showingPassword;
