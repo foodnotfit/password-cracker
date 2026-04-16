@@ -657,7 +657,7 @@ async function phase2Hash(password) {
   const fnLabel = document.getElementById("hash-fn-label");
 
   fnLabel.textContent = selectedAlgo;
-  hashIn.textContent  = password.length > 12 ? password.slice(0,10)+"…" : password;
+  hashIn.textContent  = password;
   hashIn.style.color  = "#e3b341";
 
   // Scramble output
@@ -672,7 +672,7 @@ async function phase2Hash(password) {
   clearInterval(scrambleInterval);
 
   const hash = await sha256(password);
-  hashOut.textContent = hash.slice(0, 20) + "…";
+  hashOut.textContent = hash;
   hashOut.style.color = "#39d353";
   hashOut.style.boxShadow = "0 0 12px rgba(57,211,83,0.4)";
   await sleep(500);
