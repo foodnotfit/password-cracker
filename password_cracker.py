@@ -1244,7 +1244,7 @@ class PasswordCrackerApp:
         elif crack_seconds < 3600:
             anim_duration = min(4.0, 1.5 + math.log10(max(crack_seconds, 1)))
         else:
-            anim_duration = 5.0  # strong passwords get a timeout animation
+            anim_duration = 30.0  # strong passwords: brute-force attempt runs for 30 seconds
 
         is_timeout = crack_seconds > 3600  # Will "give up" for strong passwords
 
@@ -1527,6 +1527,9 @@ class PasswordCrackerApp:
         else:
             # Force all chars to password — never show scrambled chars in result
             final_display = list(password)
+            # Set flag HERE (in background thread) before scheduling, so any
+            # pending root.after(update_crack_display) calls see it and bail
+            self._animation_done = True
             self.root.after(0, self.show_cracked_result,
                             final_display, pw_len, crack_seconds,
                             strength_label, strength_color, message, tip,
@@ -1612,27 +1615,38 @@ class PasswordCrackerApp:
 
         self.status_label.config(text=status, fg=C["cyan"])
 
-    def show_cracked_result(self, display, pw_len, crack_seconds,
-                             label, color, message, tip, attack_label="brute-force"):
-        """Password was cracked."""
-        # Final display — all green
+    def _draw_cracked_canvas(self, display, pw_len, color="green"):
+        """Draw the final cracked password canvas. Called multiple times to defeat race."""
+        if not getattr(self, '_animation_done', False):
+            return  # Don't draw if animation somehow restarted
         self.crack_canvas.delete("all")
         canvas_w = self.crack_canvas.winfo_width()
         if canvas_w < 10: canvas_w = 800
-
         char_w = min(45, max(25, (canvas_w - 40) // pw_len))
         total_w = char_w * pw_len
         start_x = (canvas_w - total_w) / 2 + char_w / 2
-
+        fill_col = C["green_dim"]
+        border_col = C["green"]
+        text_col = C["green"]
         for i in range(pw_len):
             x = start_x + i * char_w
             y = 60
             self.crack_canvas.create_rectangle(
                 x - char_w/2 + 2, y - 22, x + char_w/2 - 2, y + 22,
-                fill=C["green_dim"], outline=C["green"], width=2)
+                fill=fill_col, outline=border_col, width=2)
             self.crack_canvas.create_text(
-                x, y, text=display[i], fill=C["green"],
+                x, y, text=display[i], fill=text_col,
                 font=("Courier", 20, "bold"))
+
+    def show_cracked_result(self, display, pw_len, crack_seconds,
+                             label, color, message, tip, attack_label="brute-force"):
+        """Password was cracked."""
+        self._animation_done = True  # Ensure guard is set before any draws
+        # Draw immediately
+        self._draw_cracked_canvas(display, pw_len)
+        # Schedule two more redraws to stomp any stale animation frames
+        self.root.after(80,  lambda d=list(display), n=pw_len: self._draw_cracked_canvas(d, n))
+        self.root.after(250, lambda d=list(display), n=pw_len: self._draw_cracked_canvas(d, n))
 
         # Full progress bar in red/orange
         self.progress_canvas.delete("all")
