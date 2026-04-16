@@ -684,100 +684,107 @@ async function phase2Hash(password) {
 
 async function phase3Matrix(password, willCrack) {
   const matrixArea = document.getElementById("matrix-area");
-  const prog = document.getElementById("progress2");
-  const status = document.getElementById("status2");
+  const prog       = document.getElementById("progress2");
+  const status     = document.getElementById("status2");
   matrixArea.innerHTML = "";
 
-  // Build char boxes
+  // Build one box per character
   const boxes = [];
   for (let i = 0; i < password.length; i++) {
     const box = document.createElement("div");
-    box.className = "char-box scrambling";
+    box.className   = "char-box scrambling";
     box.textContent = CRACK_CHARS[randInt(0, CRACK_CHARS.length)];
     matrixArea.appendChild(box);
     boxes.push(box);
   }
 
-  const BRUTE_FORCE_SECS = 30; // Show 30-second brute force attempt for strong passwords
-  const totalDuration = willCrack ? Math.min(password.length * 120, 2000) : BRUTE_FORCE_SECS * 1000;
   status.textContent = "💻 Attempting character-by-character brute force…";
 
-  // For strong passwords, show a live countdown while scrambling
-  let countdownInterval = null;
-  if (!willCrack) {
-    let remaining = BRUTE_FORCE_SECS;
-    status.textContent = `💻 Brute-forcing… ${remaining}s remaining`;
-    countdownInterval = setInterval(() => {
-      remaining--;
-      if (remaining > 0) {
-        status.textContent = `💻 Brute-forcing… ${remaining}s remaining`;
-      } else {
-        clearInterval(countdownInterval);
-      }
-    }, 1000);
-  }
-
-  // Scramble all for a moment
-  const scrambleEnd = Date.now() + (willCrack ? 800 : totalDuration * 0.85);
-  await new Promise(resolve => {
-    function scramble() {
-      if (animCancel) { resolve(); return; }
-      boxes.forEach(box => {
-        if (box.classList.contains("scrambling")) {
-          box.textContent = CRACK_CHARS[randInt(0, CRACK_CHARS.length)];
-        }
-      });
-      if (Date.now() < scrambleEnd) requestAnimationFrame(scramble);
-      else resolve();
-    }
-    requestAnimationFrame(scramble);
-  });
-
-  if (animCancel) return;
-
   if (willCrack) {
-    // Reveal chars one by one
+    // Phase A: scramble all boxes for 800ms
+    const scramEnd = Date.now() + 800;
+    await new Promise(resolve => {
+      function tick() {
+        if (animCancel) { resolve(); return; }
+        boxes.forEach(b => {
+          if (b.dataset.locked !== "1")
+            b.textContent = CRACK_CHARS[randInt(0, CRACK_CHARS.length)];
+        });
+        if (Date.now() < scramEnd) requestAnimationFrame(tick);
+        else resolve();
+      }
+      requestAnimationFrame(tick);
+    });
+    if (animCancel) return;
+
+    // Phase B: reveal one character at a time
+    const delayPer = Math.max(60, Math.min(200, 1400 / boxes.length));
     for (let i = 0; i < boxes.length; i++) {
       if (animCancel) return;
+
+      // Lock this box to the real character
+      boxes[i].dataset.locked = "1";
       boxes[i].classList.remove("scrambling");
       boxes[i].classList.add("revealed");
-      boxes[i].textContent = password[i];
+      boxes[i].textContent = password[i];   // ← the real character
+
       prog.style.width = ((i + 1) / boxes.length * 100) + "%";
-      status.textContent = `🔓 Cracked ${i+1}/${boxes.length} characters…`;
+      status.textContent = "🔓 Cracked " + (i+1) + "/" + boxes.length + " characters…";
 
-      // Keep scrambling remaining
-      let scramCount = 0;
-      const scramInterval = setInterval(() => {
-        for (let j = i+1; j < boxes.length; j++) {
-          boxes[j].textContent = CRACK_CHARS[randInt(0, CRACK_CHARS.length)];
+      // Keep remaining boxes scrambling while we wait
+      const waitEnd = Date.now() + delayPer;
+      await new Promise(resolve => {
+        function scramRemaining() {
+          if (animCancel) { resolve(); return; }
+          for (let j = i + 1; j < boxes.length; j++) {
+            if (boxes[j].dataset.locked !== "1")
+              boxes[j].textContent = CRACK_CHARS[randInt(0, CRACK_CHARS.length)];
+          }
+          if (Date.now() < waitEnd) requestAnimationFrame(scramRemaining);
+          else resolve();
         }
-        scramCount++;
-        if (scramCount > 3) clearInterval(scramInterval);
-      }, 60);
-
-      await sleep(Math.max(50, Math.min(180, 1600 / boxes.length)));
+        requestAnimationFrame(scramRemaining);
+      });
     }
+
     status.textContent = "✅ PASSWORD CRACKED!";
     prog.style.background = "linear-gradient(90deg,#39d353,#00ff41)";
+    prog.style.width = "100%";
+
   } else {
-    // Give up — show ? boxes
-    if (countdownInterval) clearInterval(countdownInterval);
-    prog.style.width = "70%";
-    await sleep(400);
-    boxes.forEach(box => {
-      box.classList.remove("scrambling");
-      box.classList.add("question");
-      box.textContent = "?";
+    // Strong password: scramble for 3s then show ?
+    const STRONG_MS = 3000;
+    const scramEnd = Date.now() + STRONG_MS;
+    let remaining = 3;
+    status.textContent = "💻 Brute-forcing… 3s remaining";
+    const countdown = setInterval(() => {
+      remaining--;
+      if (remaining > 0) status.textContent = "💻 Brute-forcing… " + remaining + "s remaining";
+    }, 1000);
+
+    await new Promise(resolve => {
+      function tick() {
+        if (animCancel) { clearInterval(countdown); resolve(); return; }
+        boxes.forEach(b => { b.textContent = CRACK_CHARS[randInt(0, CRACK_CHARS.length)]; });
+        if (Date.now() < scramEnd) requestAnimationFrame(tick);
+        else resolve();
+      }
+      requestAnimationFrame(tick);
+    });
+    clearInterval(countdown);
+    if (animCancel) return;
+
+    boxes.forEach(b => {
+      b.classList.remove("scrambling");
+      b.classList.add("question");
+      b.textContent = "?";
     });
     prog.style.width = "70%";
     prog.style.background = "linear-gradient(90deg,#f85149,#f0883e)";
-    status.textContent = "❌ GAVE UP after 30 seconds — too complex to crack in your lifetime!";
+    status.textContent = "❌ GAVE UP — too complex to crack in your lifetime!";
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// MAIN CRACK FLOW
-// ═══════════════════════════════════════════════════════════════
 
 async function startCrack() {
   const password = document.getElementById("pw-input").value;
