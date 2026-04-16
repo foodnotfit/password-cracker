@@ -735,11 +735,11 @@ function estimateCrackTime(password, hashSpeed) {
   const displaySpeed = hashSpeed !== undefined ? hashSpeed : GUESSES_PER_SEC_BRUTE;
 
   // Phase 1: Instant catches
-  if (COMMON_PASSWORDS.has(pwLower)) return {seconds:0.001, charsetSize, method:"common"};
-  if (NAME_COMBOS.has(password) || NAME_COMBOS.has(password.toLowerCase())) return {seconds:0.001, charsetSize, method:"common"};
-  if (new Set(password).size === 1) return {seconds:0.001, charsetSize, method:"pattern"};
-  if (isKeyboardWalk(password)) return {seconds:0.001, charsetSize, method:"keyboard_walk"};
-  if (isSequential(password)) return {seconds:0.001, charsetSize, method:"sequential"};
+  if (COMMON_PASSWORDS.has(pwLower)) { const _ds=0.001/(displaySpeed/GUESSES_PER_SEC_BRUTE); return {seconds:0.001, qualitySeconds:0.001, displaySeconds:_ds, charsetSize, method:"common"}; }
+  if (NAME_COMBOS.has(password) || NAME_COMBOS.has(password.toLowerCase())) { const _ds=0.001/(displaySpeed/GUESSES_PER_SEC_BRUTE); return {seconds:0.001, qualitySeconds:0.001, displaySeconds:_ds, charsetSize, method:"common"}; }
+  if (new Set(password).size === 1) { const _ds=0.001/(displaySpeed/GUESSES_PER_SEC_BRUTE); return {seconds:0.001, qualitySeconds:0.001, displaySeconds:_ds, charsetSize, method:"pattern"}; }
+  if (isKeyboardWalk(password)) { const _ds=0.001/(displaySpeed/GUESSES_PER_SEC_BRUTE); return {seconds:0.001, qualitySeconds:0.001, displaySeconds:_ds, charsetSize, method:"keyboard_walk"}; }
+  if (isSequential(password)) { const _ds=0.001/(displaySpeed/GUESSES_PER_SEC_BRUTE); return {seconds:0.001, qualitySeconds:0.001, displaySeconds:_ds, charsetSize, method:"sequential"}; }
 
   // Phase 2: Rule-based
   let bestTime = Infinity, bestMethod = "brute_force";
