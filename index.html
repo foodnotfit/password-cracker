@@ -198,6 +198,7 @@ footer{text-align:center;padding:14px;color:#30363d;font-size:0.8rem;background:
   <div class="mode-tabs">
     <button class="mode-tab active" id="tab-password" onclick="switchMode('password')">🔑 Crack a Password</button>
     <button class="mode-tab" id="tab-hash" onclick="switchMode('hash')">🧬 Crack a Hash</button>
+    <button class="mode-tab" id="tab-references" onclick="switchMode('references')">📚 References</button>
   </div>
 
   <!-- INPUT CARD -->
@@ -270,6 +271,193 @@ footer{text-align:center;padding:14px;color:#30363d;font-size:0.8rem;background:
     <div class="crack-result-card" id="crack-result">
       <div class="crack-result-title">Result</div>
       <div id="crack-result-body"></div>
+    </div>
+  </div>
+
+  <!-- REFERENCES CARD -->
+  <div class="input-card" id="references-card" style="display:none">
+    <style>
+      .pw-ref-section { margin-bottom: 30px; }
+      .pw-ref-title { font-size: 1.1rem; font-weight: 800; color: #58a6ff; border-bottom: 2px solid #21262d; padding-bottom: 8px; margin-bottom: 14px; }
+      .pw-ref-list { display: flex; flex-direction: column; gap: 10px; }
+      .pw-ref-item { background: #21262d; border: 1px solid #30363d; border-radius: 10px; padding: 12px 16px; transition: border-color 0.2s; }
+      .pw-ref-item:hover { border-color: #58a6ff; }
+      .pw-ref-item a { color: #bc8cff; font-weight: 700; font-size: 0.88rem; text-decoration: none; word-break: break-all; }
+      .pw-ref-item a:hover { color: #a78bfa; text-decoration: underline; }
+      .pw-ref-item .ref-title { font-size: 0.88rem; font-weight: 700; color: #f0f6fc; margin-bottom: 3px; }
+      .pw-ref-item .ref-authors { font-size: 0.78rem; color: #8b949e; margin-bottom: 3px; }
+      .pw-ref-item .ref-desc { font-size: 0.8rem; color: #8b949e; line-height: 1.5; margin-bottom: 6px; }
+      .pw-ref-tag { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; margin-right: 4px; margin-bottom: 2px; }
+      .pw-ref-red    { background: rgba(248,81,73,0.12); color: #f85149; border: 1px solid #f85149; }
+      .pw-ref-green  { background: rgba(57,211,83,0.12); color: #39d353; border: 1px solid #39d353; }
+      .pw-ref-blue   { background: rgba(88,166,255,0.12); color: #58a6ff; border: 1px solid #58a6ff; }
+      .pw-ref-yellow { background: rgba(227,179,65,0.12); color: #e3b341; border: 1px solid #e3b341; }
+      .pw-ref-purple { background: rgba(188,140,255,0.12); color: #bc8cff; border: 1px solid #bc8cff; }
+      .pw-ref-teal   { background: rgba(57,197,207,0.12); color: #39c5cf; border: 1px solid #39c5cf; }
+    </style>
+
+    <div class="section-label">📚 References — Password Safety &amp; Cryptography</div>
+    <p style="color:#8b949e;font-size:0.88rem;line-height:1.6;margin-bottom:20px;">The concepts in this demo are grounded in peer-reviewed research and official standards. Every algorithm, attack technique, and security recommendation shown here is backed by the following authoritative sources.</p>
+
+    <!-- PASSWORD SECURITY FUNDAMENTALS -->
+    <div class="pw-ref-section">
+      <div class="pw-ref-title">🔑 Password Security Fundamentals</div>
+      <div class="pw-ref-list">
+        <div class="pw-ref-item">
+          <div class="ref-title">NIST Special Publication 800-63B — Digital Identity Guidelines: Authentication &amp; Lifecycle Management</div>
+          <div class="ref-authors">NIST (2017, updated 2024)</div>
+          <div class="ref-desc">The authoritative US government standard for password policies — recommends 8+ character minimum, no complexity rules, checking against breach databases, and supporting long passphrases. Defines password strength requirements referenced in this demo.</div>
+          <span class="pw-ref-tag pw-ref-green">NIST Standard</span><span class="pw-ref-tag pw-ref-blue">Password Policy</span>
+          <br><a href="https://pages.nist.gov/800-63-3/sp800-63b.html" target="_blank" rel="noopener">https://pages.nist.gov/800-63-3/sp800-63b.html</a>
+        </div>
+        <div class="pw-ref-item">
+          <div class="ref-title">Have I Been Pwned — Breach Database (Methodology)</div>
+          <div class="ref-authors">Hunt, T. (2013–present) — haveibeenpwned.com</div>
+          <div class="ref-desc">The most comprehensive publicly available breach credential database — 14+ billion records. The rainbow table phase in this demo simulates a lookup against breach databases like HIBP. NIST SP 800-63B recommends checking new passwords against breach lists.</div>
+          <span class="pw-ref-tag pw-ref-red">Breach Database</span><span class="pw-ref-tag pw-ref-blue">Rainbow Tables</span>
+          <br><a href="https://haveibeenpwned.com/FAQs" target="_blank" rel="noopener">https://haveibeenpwned.com/FAQs</a>
+        </div>
+        <div class="pw-ref-item">
+          <div class="ref-title">Measuring Password Strength (zxcvbn)</div>
+          <div class="ref-authors">Wheeler, D. L. (2012/2016) — Dropbox Engineering / USENIX Security</div>
+          <div class="ref-desc">The science behind realistic password strength estimation — models real-world attacks rather than character class rules. Basis for the crack time estimation approach used in this demo (dictionary attacks, pattern matching, entropy calculations).</div>
+          <span class="pw-ref-tag pw-ref-blue">Strength Estimation</span><span class="pw-ref-tag pw-ref-blue">Entropy</span>
+          <br><a href="https://www.usenix.org/conference/usenixsecurity16/technical-sessions/presentation/wheeler" target="_blank" rel="noopener">https://www.usenix.org/conference/usenixsecurity16/technical-sessions/presentation/wheeler</a>
+        </div>
+        <div class="pw-ref-item">
+          <div class="ref-title">Lessons from a Real-World Password Study (RockYou Breach Analysis)</div>
+          <div class="ref-authors">Bonneau, J. (2012) — IEEE Symposium on Security &amp; Privacy</div>
+          <div class="ref-desc">Analysis of 70 million real-world passwords from the 2009 RockYou breach — quantifies how predictable real password choices are, including name+number patterns, common words, and keyboard walks that the cracker targets.</div>
+          <span class="pw-ref-tag pw-ref-red">Password Patterns</span><span class="pw-ref-tag pw-ref-red">Real-World Attacks</span>
+          <br><a href="https://ieeexplore.ieee.org/document/6234436" target="_blank" rel="noopener">https://ieeexplore.ieee.org/document/6234436</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- HASH FUNCTIONS -->
+    <div class="pw-ref-section">
+      <div class="pw-ref-title">🔐 Hash Functions &amp; Why They Matter</div>
+      <div class="pw-ref-list">
+        <div class="pw-ref-item">
+          <div class="ref-title">MD5 Considered Harmful (Collision Attack)</div>
+          <div class="ref-authors">Wang, X. &amp; Yu, H. (2005) — EUROCRYPT</div>
+          <div class="ref-desc">Demonstrates practical MD5 collision attacks in under one minute — the reason MD5 is marked "Broken" in this demo. Two different inputs can produce the same MD5 hash, completely breaking its integrity guarantees.</div>
+          <span class="pw-ref-tag pw-ref-red">MD5 Broken</span><span class="pw-ref-tag pw-ref-red">Collision Attack</span>
+          <br><a href="https://link.springer.com/chapter/10.1007/11426639_2" target="_blank" rel="noopener">https://link.springer.com/chapter/10.1007/11426639_2</a>
+        </div>
+        <div class="pw-ref-item">
+          <div class="ref-title">SHA-1 Collision Attack (SHAttered)</div>
+          <div class="ref-authors">Stevens, M. et al. (Google / CWI Amsterdam) (2017) — USENIX Security</div>
+          <div class="ref-desc">First practical SHA-1 collision — produced two different PDF files with the same SHA-1 hash. Computed using ~6,500 CPU years and 110 GPU years. Confirms SHA-1's "avoid" status shown in this demo.</div>
+          <span class="pw-ref-tag pw-ref-red">SHA-1 Broken</span><span class="pw-ref-tag pw-ref-red">SHAttered</span>
+          <br><a href="https://shattered.io/" target="_blank" rel="noopener">https://shattered.io/</a>
+        </div>
+        <div class="pw-ref-item">
+          <div class="ref-title">SHA-2 (SHA-256) Standard — FIPS 180-4</div>
+          <div class="ref-authors">NIST (2015) — Federal Information Processing Standard 180-4</div>
+          <div class="ref-desc">The official specification for SHA-256 — the "common" algorithm in this demo. While structurally sound against collision attacks, its speed (~3B/sec on GPUs) makes it unsuitable for direct password hashing without key stretching.</div>
+          <span class="pw-ref-tag pw-ref-yellow">SHA-256</span><span class="pw-ref-tag pw-ref-green">NIST Standard</span>
+          <br><a href="https://csrc.nist.gov/publications/detail/fips/180/4/final" target="_blank" rel="noopener">https://csrc.nist.gov/publications/detail/fips/180/4/final</a>
+        </div>
+        <div class="pw-ref-item">
+          <div class="ref-title">SHA-3 Standard (Keccak) — FIPS 202</div>
+          <div class="ref-authors">NIST (2015) — Federal Information Processing Standard 202</div>
+          <div class="ref-desc">The official specification for SHA-3 (Keccak sponge construction) — selected by NIST as the quantum-safe hash standard. Structurally different from SHA-2, providing diversity against algorithm-specific attacks.</div>
+          <span class="pw-ref-tag pw-ref-teal">SHA-3</span><span class="pw-ref-tag pw-ref-green">Quantum Safe</span>
+          <br><a href="https://csrc.nist.gov/publications/detail/fips/202/final" target="_blank" rel="noopener">https://csrc.nist.gov/publications/detail/fips/202/final</a>
+        </div>
+        <div class="pw-ref-item">
+          <div class="ref-title">BLAKE3 — One Function, Fast Everywhere</div>
+          <div class="ref-authors">O'Connor, J., Aumasson, J-P., Neves, S. &amp; Wilcox-O'Hearn, Z. (2020)</div>
+          <div class="ref-desc">BLAKE3 is faster than MD5 while providing 256-bit security. Designed as a modern, parallelizable, quantum-safe hash function suitable for high-performance applications — the fastest "safe" algorithm shown in this demo.</div>
+          <span class="pw-ref-tag pw-ref-blue">BLAKE3</span><span class="pw-ref-tag pw-ref-green">Quantum Safe</span>
+          <br><a href="https://github.com/BLAKE3-team/BLAKE3-specs/blob/master/blake3.pdf" target="_blank" rel="noopener">https://github.com/BLAKE3-team/BLAKE3-specs/blob/master/blake3.pdf</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- MEMORY-HARD HASHING -->
+    <div class="pw-ref-section">
+      <div class="pw-ref-title">🛡️ Password Hashing: bcrypt &amp; Argon2</div>
+      <div class="pw-ref-list">
+        <div class="pw-ref-item">
+          <div class="ref-title">A Future-Adaptable Password Scheme (bcrypt)</div>
+          <div class="ref-authors">Provos, N. &amp; Mazières, D. (1999) — USENIX Annual Technical Conference</div>
+          <div class="ref-desc">The original bcrypt paper — introduces adaptive cost factor (work factor) to keep brute-force impractical as hardware improves. Still the minimum recommended standard for password storage. Speed: ~100K/sec vs 3B/sec for SHA-256 on the same hardware.</div>
+          <span class="pw-ref-tag pw-ref-green">bcrypt</span><span class="pw-ref-tag pw-ref-green">Memory Hard</span>
+          <br><a href="https://www.usenix.org/legacy/events/usenix99/provos/provos.pdf" target="_blank" rel="noopener">https://www.usenix.org/legacy/events/usenix99/provos/provos.pdf</a>
+        </div>
+        <div class="pw-ref-item">
+          <div class="ref-title">Argon2: Memory-Hard Function for Password Hashing and Proof-of-Work (Password Hashing Competition Winner)</div>
+          <div class="ref-authors">Biryukov, A., Dinu, D. &amp; Khovratovich, D. (2015) — IEEE EuroS&amp;P 2016</div>
+          <div class="ref-desc">Argon2 won the Password Hashing Competition (2015) and is now the OWASP/NIST recommended algorithm for new applications. Three variants: Argon2i (side-channel resistant), Argon2d (GPU resistant), Argon2id (both). Speed: ~1K/sec — making it 3-million× harder to brute force than SHA-256.</div>
+          <span class="pw-ref-tag pw-ref-purple">Argon2</span><span class="pw-ref-tag pw-ref-green">Best Practice</span>
+          <br><a href="https://www.password-hashing.net/argon2-specs.pdf" target="_blank" rel="noopener">https://www.password-hashing.net/argon2-specs.pdf</a>
+        </div>
+        <div class="pw-ref-item">
+          <div class="ref-title">OWASP Password Storage Cheat Sheet</div>
+          <div class="ref-authors">Open Web Application Security Project (2024)</div>
+          <div class="ref-desc">The industry-standard guidance for secure password storage — recommends Argon2id as the first choice, bcrypt as a minimum, and explains why MD5/SHA-1/SHA-256 should never be used directly for passwords.</div>
+          <span class="pw-ref-tag pw-ref-green">OWASP</span><span class="pw-ref-tag pw-ref-green">Best Practice</span>
+          <br><a href="https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html" target="_blank" rel="noopener">https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- QUANTUM THREATS TO CRYPTO -->
+    <div class="pw-ref-section">
+      <div class="pw-ref-title">⚛️ Quantum Threats to Cryptography</div>
+      <div class="pw-ref-list">
+        <div class="pw-ref-item">
+          <div class="ref-title">Quantum Computing &amp; Its Impact on Cryptography — A Fast Quantum Search Algorithm (Grover's Algorithm)</div>
+          <div class="ref-authors">Grover, L. K. (1996) — ACM STOC</div>
+          <div class="ref-desc">Grover's algorithm provides a quadratic (√N) speedup for brute-force search — cutting a 256-bit hash's effective security to 128 bits on a quantum computer. This is the theoretical basis for Quantum Attack Mode in this demo.</div>
+          <span class="pw-ref-tag pw-ref-teal">Grover's Algorithm</span><span class="pw-ref-tag pw-ref-red">Quantum Threat</span>
+          <br><a href="https://arxiv.org/abs/quant-ph/9605043" target="_blank" rel="noopener">https://arxiv.org/abs/quant-ph/9605043</a>
+        </div>
+        <div class="pw-ref-item">
+          <div class="ref-title">Quantum-Resistant Password Hashing — Why bcrypt/Argon2 Survive Grover's Algorithm</div>
+          <div class="ref-authors">NIST (2022) — IR 8105 / SP 800-131A Rev 2</div>
+          <div class="ref-desc">NIST guidance on quantum-safe algorithm transitions — explains why memory-hard functions like bcrypt and Argon2 effectively neutralize Grover speedup (quantum RAM requirements exceed near-term hardware capabilities), while plain hash functions like SHA-256 need doubled key lengths.</div>
+          <span class="pw-ref-tag pw-ref-teal">Post-Quantum</span><span class="pw-ref-tag pw-ref-green">NIST</span>
+          <br><a href="https://csrc.nist.gov/publications/detail/sp/800-131a/rev-2/final" target="_blank" rel="noopener">https://csrc.nist.gov/publications/detail/sp/800-131a/rev-2/final</a>
+        </div>
+        <div class="pw-ref-item">
+          <div class="ref-title">NIST Post-Quantum Cryptography Standardization — Final Standards (FIPS 203/204/205)</div>
+          <div class="ref-authors">NIST (2024)</div>
+          <div class="ref-desc">The three official post-quantum cryptography standards finalized in 2024: ML-KEM (Kyber), ML-DSA (Dilithium), SLH-DSA (SPHINCS+). Basis for the "quantum safe" badges shown for SHA-3, BLAKE3, bcrypt, and Argon2 in this demo.</div>
+          <span class="pw-ref-tag pw-ref-green">PQC Standards</span><span class="pw-ref-tag pw-ref-green">NIST</span>
+          <br><a href="https://csrc.nist.gov/projects/post-quantum-cryptography" target="_blank" rel="noopener">https://csrc.nist.gov/projects/post-quantum-cryptography</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- GPU CRACKING SPEEDS -->
+    <div class="pw-ref-section">
+      <div class="pw-ref-title">💻 Real-World Cracking Speeds &amp; Tools</div>
+      <div class="pw-ref-list">
+        <div class="pw-ref-item">
+          <div class="ref-title">hashcat — Advanced CPU-Based Password Recovery</div>
+          <div class="ref-authors">Steube, J. (2009–present) — hashcat.net</div>
+          <div class="ref-desc">The world's fastest password cracking tool — the real-world benchmark source for cracking speeds shown in this demo. Achieves ~100B MD5/sec and ~3B SHA-256/sec on modern GPU clusters. The "GPU crack speed" numbers throughout this demo are based on hashcat benchmarks.</div>
+          <span class="pw-ref-tag pw-ref-red">GPU Cracking</span><span class="pw-ref-tag pw-ref-red">Benchmarks</span>
+          <br><a href="https://hashcat.net/wiki/doku.php?id=hashcat" target="_blank" rel="noopener">https://hashcat.net/wiki/doku.php?id=hashcat</a>
+        </div>
+        <div class="pw-ref-item">
+          <div class="ref-title">Rainbow Tables — Time-Memory Trade-Off in Cryptanalytic Attacks</div>
+          <div class="ref-authors">Hellman, M. E. (1980) — IEEE Transactions on Information Theory</div>
+          <div class="ref-desc">The original paper introducing time-memory trade-off attacks — the mathematical foundation for rainbow tables. Demonstrates how precomputed hash chains allow cracking any password in a set in seconds, eliminating brute-force time at the cost of storage.</div>
+          <span class="pw-ref-tag pw-ref-red">Rainbow Tables</span><span class="pw-ref-tag pw-ref-blue">TMTO</span>
+          <br><a href="https://ieeexplore.ieee.org/document/1056220" target="_blank" rel="noopener">https://ieeexplore.ieee.org/document/1056220</a>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:#21262d;border:1px solid #30363d;border-radius:10px;padding:14px 18px;text-align:center;color:#8b949e;font-size:0.83rem;line-height:1.7;margin-top:8px;">
+      All cracking speed estimates are based on publicly available hashcat benchmarks on commodity GPU hardware (RTX 4090). Real-world attacker infrastructure may be significantly faster.
+      Quantum attack estimates use Grover's algorithm complexity (O(√N)) applied to current NIST guidance on post-quantum key lengths.
+      <br><br>
+      <span style="color:#58a6ff;font-weight:700;">Built by Tetrabolt LLC for DARPA Family Day 2026</span> — cybersecurity education for the next generation.
     </div>
   </div>
 
@@ -655,25 +843,37 @@ let currentMode = 'password';
 
 function switchMode(mode) {
   currentMode = mode;
-  const pwCard  = document.getElementById('password-card');
-  const hashCard = document.getElementById('hash-crack-card');
-  const animArea = document.getElementById('anim-area');
-  const resArea  = document.getElementById('results-area');
-  const tabPw   = document.getElementById('tab-password');
-  const tabHash = document.getElementById('tab-hash');
+  const pwCard    = document.getElementById('password-card');
+  const hashCard  = document.getElementById('hash-crack-card');
+  const refCard   = document.getElementById('references-card');
+  const animArea  = document.getElementById('anim-area');
+  const resArea   = document.getElementById('results-area');
+  const tabPw     = document.getElementById('tab-password');
+  const tabHash   = document.getElementById('tab-hash');
+  const tabRefs   = document.getElementById('tab-references');
+
+  // Reset all tabs
+  tabPw.classList.remove('active');
+  tabHash.classList.remove('active', 'hash-mode');
+  if (tabRefs) tabRefs.classList.remove('active');
+  pwCard.style.display = 'none';
+  hashCard.classList.remove('visible');
+  if (refCard) refCard.style.display = 'none';
+
   if (mode === 'password') {
     pwCard.style.display = '';
-    hashCard.classList.remove('visible');
     tabPw.classList.add('active');
-    tabHash.classList.remove('active', 'hash-mode');
-  } else {
-    pwCard.style.display = 'none';
+  } else if (mode === 'hash') {
     hashCard.classList.add('visible');
     animArea.classList.remove('visible');
     resArea.classList.remove('visible');
-    tabPw.classList.remove('active');
     tabHash.classList.add('active', 'hash-mode');
     document.getElementById('hash-input').focus();
+  } else if (mode === 'references') {
+    if (refCard) refCard.style.display = '';
+    animArea.classList.remove('visible');
+    resArea.classList.remove('visible');
+    if (tabRefs) tabRefs.classList.add('active');
   }
 }
 
