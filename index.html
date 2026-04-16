@@ -1055,16 +1055,53 @@ async function phase2Hash(password) {
 
   // Compute hash using the actually selected algorithm
   let hash;
+  let hashNote = "";
+
   if (selectedAlgo === 'MD5') {
     hash = md5(password);
+  } else if (selectedAlgo === 'SHA-1') {
+    const buf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(password));
+    hash = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  } else if (selectedAlgo === 'SHA-256') {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password));
+    hash = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  } else if (selectedAlgo === 'SHA-3') {
+    // SHA-3 (Keccak) is not in the Web Crypto API — showing SHA-256 as structural stand-in
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password));
+    hash = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    hashNote = "[SHA-3 not in WebCrypto — SHA-256 shown as structural stand-in]";
+  } else if (selectedAlgo === 'BLAKE3') {
+    // BLAKE3 is not in the Web Crypto API — showing SHA-256 as structural stand-in
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password));
+    hash = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    hashNote = "[BLAKE3 not in WebCrypto — SHA-256 shown as structural stand-in]";
+  } else if (selectedAlgo === 'bcrypt') {
+    // bcrypt produces a non-deterministic salted output — simulate format
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password));
+    const raw = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    hash = "$2b$12$" + raw.slice(0, 22) + raw.slice(22, 53);
+    hashNote = "[Simulated bcrypt format — real bcrypt includes random salt]";
+  } else if (selectedAlgo === 'Argon2') {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password));
+    const raw = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    hash = "$argon2id$v=19$m=65536,t=3,p=4$" + raw.slice(0,22) + "$" + raw.slice(22,54);
+    hashNote = "[Simulated Argon2id format — real output includes random salt]";
   } else {
-    // sha256() uses SubtleCrypto — map selectedAlgo to SubtleCrypto name
-    const algoMap = {'SHA-1':'SHA-1','SHA-256':'SHA-256','SHA-384':'SHA-384','SHA-512':'SHA-512','SHA-3':'SHA-256','BLAKE3':'SHA-256','bcrypt':'SHA-256','Argon2':'SHA-256'};
-    const subtleAlgo = algoMap[selectedAlgo] || 'SHA-256';
-    const buf = await crypto.subtle.digest(subtleAlgo, new TextEncoder().encode(password));
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password));
     hash = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
   }
+
   hashOut.textContent = hash;
+  // Show note if applicable
+  const existingNote = document.getElementById("hash-standin-note");
+  if (existingNote) existingNote.remove();
+  if (hashNote) {
+    const noteEl = document.createElement("div");
+    noteEl.id = "hash-standin-note";
+    noteEl.style.cssText = "font-size:0.75rem;color:#e3b341;font-style:italic;margin-top:4px;text-align:center;";
+    noteEl.textContent = hashNote;
+    hashOut.parentElement.appendChild(noteEl);
+  }
   hashOut.style.color = "#39d353";
   hashOut.style.boxShadow = "0 0 12px rgba(57,211,83,0.4)";
   await sleep(500);
