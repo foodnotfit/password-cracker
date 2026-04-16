@@ -1504,15 +1504,9 @@ class PasswordCrackerApp:
             self._anim_after_ids.append(aid)
             time.sleep(0.05)
 
-        # Cancel every queued animation frame — none can fire after this point
-        for aid in self._anim_after_ids:
-            try:
-                self.root.after_cancel(aid)
-            except Exception:
-                pass
-        self._anim_after_ids = []
+        # Do NOT cancel from background thread — Tkinter is not thread-safe.
+        # Cancellation happens inside show_cracked_result on the main thread.
 
-        # Always build result from the original password string — NEVER from display[]
         if is_timeout:
             final_display = [password[i] if cracked[i] else "?" for i in range(pw_len)]
             self.root.after(0, self.show_timeout_result,
@@ -1631,8 +1625,14 @@ class PasswordCrackerApp:
 
     def show_cracked_result(self, display, pw_len, crack_seconds,
                              label, color, message, tip, attack_label="brute-force"):
-        """Password was cracked. display must be list(password) — never a scramble array."""
-        # Commit the final display — any stale animation frames will restore this
+        """Password was cracked. Runs on main thread — safe to cancel stale after() IDs."""
+        # Cancel every pending animation frame — main thread, so after_cancel works
+        for aid in getattr(self, '_anim_after_ids', []):
+            try:
+                self.root.after_cancel(aid)
+            except Exception:
+                pass
+        self._anim_after_ids = []
         self._final_display = list(display)
         self._draw_cracked_canvas(display, pw_len)
 
