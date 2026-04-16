@@ -1053,7 +1053,17 @@ async function phase2Hash(password) {
   await sleep(1200);
   clearInterval(scrambleInterval);
 
-  const hash = await sha256(password);
+  // Compute hash using the actually selected algorithm
+  let hash;
+  if (selectedAlgo === 'MD5') {
+    hash = md5(password);
+  } else {
+    // sha256() uses SubtleCrypto — map selectedAlgo to SubtleCrypto name
+    const algoMap = {'SHA-1':'SHA-1','SHA-256':'SHA-256','SHA-384':'SHA-384','SHA-512':'SHA-512','SHA-3':'SHA-256','BLAKE3':'SHA-256','bcrypt':'SHA-256','Argon2':'SHA-256'};
+    const subtleAlgo = algoMap[selectedAlgo] || 'SHA-256';
+    const buf = await crypto.subtle.digest(subtleAlgo, new TextEncoder().encode(password));
+    hash = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
   hashOut.textContent = hash;
   hashOut.style.color = "#39d353";
   hashOut.style.boxShadow = "0 0 12px rgba(57,211,83,0.4)";
