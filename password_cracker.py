@@ -1203,6 +1203,7 @@ class PasswordCrackerApp:
             return
 
         self.cracking = True
+        self._animation_done = False
         self.cancel_crack = False
         self.crack_btn.config(state="disabled", bg=C["dim"])
         self.password_entry.config(state="disabled")
@@ -1511,9 +1512,6 @@ class PasswordCrackerApp:
 
         # ── FINAL RESULT ──
         self._animation_done = True
-        # Small sleep so any pending root.after animation frames flush before
-        # the result is rendered — prevents stale scramble frame overwriting result
-        import time as _t; _t.sleep(0.12)
 
         if is_timeout:
             final_display = []
@@ -1542,6 +1540,9 @@ class PasswordCrackerApp:
 
     def update_crack_display(self, display, cracked, pw_len, progress,
                               status, is_timeout):
+        # ⚠️ Guard: if animation is done, NEVER overwrite the result canvas
+        if getattr(self, '_animation_done', False):
+            return
         self.crack_canvas.delete("all")
         canvas_w = self.crack_canvas.winfo_width()
         if canvas_w < 10:
