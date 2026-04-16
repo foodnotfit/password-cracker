@@ -231,7 +231,7 @@ footer{text-align:center;padding:14px;color:#30363d;font-size:0.8rem;background:
       <button class="hash-btn" data-algo="bcrypt" onclick="selectAlgo(this)">bcrypt</button>
       <button class="hash-btn" data-algo="Argon2" onclick="selectAlgo(this)">Argon2</button>
     </div>
-    <div class="hash-desc" id="hash-desc">Common — ~3B/sec on modern GPU hardware</div>
+    <div class="hash-desc" id="hash-desc">Unsalted SHA-256 — 22.8 GH/s offline (use Argon2id or bcrypt)</div>
     <div class="quantum-row" id="q-row">
       <input type="checkbox" id="q-toggle" onchange="toggleQuantum()">
       <label for="q-toggle">⚛️ Quantum Attack Mode <span style="font-size:0.76rem;color:#8b949e;font-weight:400">(Grover's algorithm — near-future quantum computer)</span></label>
@@ -551,7 +551,7 @@ footer{text-align:center;padding:14px;color:#30363d;font-size:0.8rem;background:
 <!-- TIPS FOOTER -->
 <div id="tips-footer">
   <span>✅ Use 12+ characters</span>
-  <span>✅ Mix UPPER + lower + numbers + symbols</span>
+  <span>✅ 15+ characters, unique, screened against breach lists (NIST SP 800-63B-4)</span>
   <span>✅ Avoid real words & names</span>
   <span>✅ Use a password manager</span>
   <span>✅ Never reuse passwords</span>
@@ -1118,20 +1118,20 @@ async function startHashCrack() {
       safe: 'MD5 is broken but this password was not in our 71k table. A real attacker with 600M+ entries would likely find it. <strong>Never use MD5 for passwords.</strong>'
     },
     'SHA-1': {
-      broken: '<strong>SHA-1 is deprecated (NIST, 2011).</strong> Runs at ~10 billion hashes/sec on a GPU. ' +
+      broken: '<strong>SHA-1 is deprecated (NIST, 2011).</strong> RTX 4090 cracks at 56.9 GH/s (56.9 billion hashes/sec). ' +
         '<br><br><strong>Attack used: Rainbow Table.</strong> This hash was precomputed and stored. ' +
         'Real-world breach databases cover hundreds of millions of entries. ' +
         'Without salting, all users with the same password share the same hash — one lookup, many victims.' +
         '<br><br><strong>Fix:</strong> bcrypt, Argon2id with a unique random salt per user.',
-      safe: 'SHA-1 is deprecated but not in our 71k table. At 10B/sec with full RockYou + rules, a GPU would crack most passwords in minutes to hours. Never use SHA-1 for passwords.'
+      safe: 'SHA-1 is deprecated. At 56.9 GH/s (RTX 4090 Hashcat benchmark) with RockYou + rules, a GPU cracks most human-chosen passwords in minutes to hours. Never use SHA-1 for passwords.'
     },
     'SHA-256': {
       broken: '<strong>SHA-256 is secure as a hash — but catastrophically wrong for passwords.</strong> ' +
-        'It runs at ~3 billion hashes/sec on a GPU. Speed is a feature for file integrity; it is a fatal flaw for passwords.' +
+        'RTX 4090 cracks unsalted SHA-256 at 22.8 GH/s. Speed is a feature for file integrity; it is a fatal flaw for passwords.' +
         '<br><br><strong>Attack used: Rainbow Table.</strong> Even SHA-256 hashes of common passwords are precomputed and stored in breach databases. ' +
         'No salting means identical passwords have identical hashes across all systems.' +
         '<br><br><strong>Fix:</strong> Argon2id (NIST SP 800-63B recommended), bcrypt, or scrypt — memory-hard and intentionally slow.',
-      safe: 'SHA-256 is strong but not in our 71k table. At 3B/sec with wordlist + mutation rules, a GPU would crack most short passwords in minutes to days. Always use Argon2id or bcrypt for passwords.'
+      safe: 'SHA-256 is strong but not in our 71k table. At 22.8 GH/s (RTX 4090) with wordlist + mutation rules, a GPU cracks most human-chosen passwords in minutes to days. Always use Argon2id or bcrypt for passwords.'
     }
   };
 
@@ -1640,8 +1640,8 @@ function showResults(password, seconds, tier, method) {
   document.getElementById("verdict").textContent = tier.label;
   document.getElementById("verdict").style.color = tier.color;
   document.getElementById("crack-time-display").innerHTML =
-    `⏱ Crack time: <strong style="color:${tier.color}">${formatTime(seconds)}</strong>&nbsp; &nbsp;` +
-    `<span style="color:#8b949e;font-size:0.85rem">(using ${selectedAlgo} · attack: ${method.replace(/_/g," ")})</span>`;
+    `⏱ Est. offline resistance: ~<strong style="color:${tier.color}">${formatTime(seconds)}</strong>&nbsp; &nbsp;` +
+    `<span style="color:#8b949e;font-size:0.85rem">(using ${selectedAlgo} · attack: ${method.replace(/_/g," ")}) · rough approx — online attacks are rate-limited</span>`;
   document.getElementById("result-message").textContent = tier.message;
   document.getElementById("result-tip").textContent = tier.tip;
 
