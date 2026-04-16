@@ -390,11 +390,11 @@ footer{text-align:center;padding:14px;color:#30363d;font-size:0.8rem;background:
           <br><a href="https://link.springer.com/chapter/10.1007/11426639_2" target="_blank" rel="noopener">https://link.springer.com/chapter/10.1007/11426639_2</a>
         </div>
         <div class="pw-ref-item">
-          <div class="ref-title">SHAttered — First Practical SHA-1 Collision</div>
-          <div class="ref-authors">Stevens, M., Bursztein, E., Karpman, P., Albertini, A. &amp; Markov, Y. (2017) — USENIX Security 2017</div>
-          <div class="ref-desc">First practical SHA-1 collision — two PDF files with identical SHA-1 hashes, computed using ~6,500 CPU-years and 110 GPU-years of computation. Confirms SHA-1 deprecation status. The attack cost is now within reach of nation-state and well-funded adversaries.</div>
+          <div class="ref-title">The First Collision for Full SHA-1 (SHAttered — Academic Paper)</div>
+          <div class="ref-authors">Stevens, M., Bursztein, E., Karpman, P., Albertini, A. &amp; Markov, Y. (2017) — USENIX Security Symposium 2017</div>
+          <div class="ref-desc">Academic paper documenting the first practical SHA-1 collision — two different documents with identical SHA-1 hashes — requiring approximately 6,500 CPU-years and 110 GPU-years of computation. This research confirmed SHA-1's deprecated status and is why it is marked "avoid" in this demo. Published via USENIX, the leading academic security conference.</div>
           <span class="pw-ref-tag pw-ref-red">SHA-1 Broken</span>
-          <br><a href="https://shattered.io/" target="_blank" rel="noopener">https://shattered.io/</a>
+          <br><a href="https://www.usenix.org/conference/usenixsecurity17/technical-sessions/presentation/stevens" target="_blank" rel="noopener">https://www.usenix.org/conference/usenixsecurity17/technical-sessions/presentation/stevens</a>
         </div>
         <div class="pw-ref-item">
           <div class="ref-title">FIPS 180-4 — Secure Hash Standard (SHA-2 / SHA-256)</div>
@@ -473,7 +473,7 @@ footer{text-align:center;padding:14px;color:#30363d;font-size:0.8rem;background:
         <div class="pw-ref-item">
           <div class="ref-title">Time-Memory Trade-Off in Cryptanalytic Attacks — Foundation of Precomputed Hash Lookups</div>
           <div class="ref-authors">Hellman, M. E. (1980) — IEEE Transactions on Information Theory, Vol. 26, No. 4, pp. 401–406</div>
-          <div class="ref-desc">Martin Hellman's foundational paper on time-memory trade-off attacks — the mathematical basis for precomputed hash lookup tables (the "rainbow table" concept demonstrated in Phase 1 of this demo). Shows how storing precomputed hash chains allows cracking any password in a fixed set in near-constant time, trading storage for computation. Salting passwords defeats this attack entirely by making each hash unique.</div>
+          <div class="ref-desc">Martin Hellman's foundational 1980 paper on time-memory trade-off in cryptanalysis — the theoretical basis for why password databases must use unique salts. It establishes that precomputed lookup structures can accelerate certain operations by trading storage for computation time. This is precisely why NIST SP 800-63B requires unique per-user salts in password hashing systems: salting ensures every stored hash is unique, completely neutralizing this class of attack.</div>
           <span class="pw-ref-tag pw-ref-red">TMTO</span><span class="pw-ref-tag pw-ref-blue">Cryptanalysis</span>
           <br><a href="https://ieeexplore.ieee.org/document/1056220" target="_blank" rel="noopener">https://ieeexplore.ieee.org/document/1056220</a>
         </div>
