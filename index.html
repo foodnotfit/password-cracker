@@ -86,7 +86,7 @@ body{background:#0d1117;color:#f0f6fc;font-family:system-ui,-apple-system,BlinkM
 .quantum-row label{font-size:0.88rem;font-weight:700;color:#8b949e;cursor:pointer;display:flex;align-items:center;gap:7px}
 .quantum-row.active label{color:#39c5cf}
 #q-toggle{width:16px;height:16px;accent-color:#39c5cf;cursor:pointer}
-.quantum-panel{background:#0d1117;border:2px solid #39c5cf;border-radius:10px;padding:14px;margin-top:8px;display:none}
+.quantum-panel{background:#0d1117;border:2px solid #39c5cf;border-radius:10px;padding:14px;margin-top:8px;display:none;max-height:300px;overflow-y:auto}
 .quantum-panel.visible{display:block}
 .quantum-panel h4{font-size:0.85rem;font-weight:700;color:#39c5cf;margin-bottom:8px;letter-spacing:1px}
 .q-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:0.84rem}
@@ -315,9 +315,11 @@ footer{text-align:center;padding:14px;color:#30363d;font-size:0.8rem;background:
       <div class="strength-track" id="strength-track"></div>
     </div>
 
-    <div style="margin-top:20px">
-      <button class="btn btn-reset" onclick="resetApp()" style="margin:0 auto;display:block">🔄 Try Another Password</button>
-    </div>
+  </div>
+
+  <!-- RESET BUTTON — always visible after crack, outside results scroll area -->
+  <div id="reset-btn-wrap" style="display:none;text-align:center;margin:16px 0 8px">
+    <button class="btn btn-reset" onclick="resetApp()">🔄 Try Another Password</button>
   </div>
 
 </div><!-- /main -->
@@ -1272,6 +1274,7 @@ function showResults(password, seconds, tier, method) {
 
   area.classList.add("visible");
   area.scrollIntoView({behavior:"smooth", block:"nearest"});
+  document.getElementById("reset-btn-wrap").style.display = "block";
 }
 
 function buildStrengthMeter(seconds, activeColor) {
@@ -1302,6 +1305,7 @@ function buildStrengthMeter(seconds, activeColor) {
 function resetApp() {
   animCancel = true;
   cracking = false;
+  document.getElementById("reset-btn-wrap").style.display = "none";
   document.getElementById("pw-input").value = "";
   document.getElementById("pw-input").disabled = false;
   document.getElementById("crack-btn").disabled = true;
