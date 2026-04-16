@@ -20,9 +20,10 @@ import hashlib
 
 # ─── Profanity Filter ────────────────────────────────────────────────────────
 _LEET_NORMALIZE = str.maketrans({
-    '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's',
-    '6': 'g', '7': 't', '8': 'b', '9': 'g', '@': 'a',
-    '$': 's', '!': 'i', '+': 't', '|': 'i',
+    '0': 'o', '1': 'i', '2': 'z', '3': 'e', '4': 'a', '5': 's',
+    '6': 'g', '7': 't', '8': 'b', '9': 'g', '@': 'a', '$': 's',
+    '!': 'i', '+': 't', '|': 'i', '(': 'c', '{': 'c', '<': 'c',
+    '#': 'h', '^': 'a', '%': 'o', '&': 'and',
 })
 
 def _normalize_for_profanity(text):
@@ -33,33 +34,60 @@ def _profanity_candidates(text):
     """
     Generate multiple forms of the password to maximize detection:
     - raw text
-    - leet-normalized
+    - leet-normalized (full string)
+    - leet-normalized with trailing punctuation stripped before decoding
     - only-alpha chars extracted (strips digits/symbols surrounding words)
     - space-separated alpha tokens from leet-normalized
     """
     raw = text.lower()
     normalized = _normalize_for_profanity(text)
+    # Strip trailing punctuation/digits then normalize (catches "sh1t!" → "shit")
+    stripped = re.sub(r'[^a-zA-Z0-9]', '', text)  # remove all non-alnum first
+    normalized_stripped = _normalize_for_profanity(stripped)
     # Extract only alpha sequences (catches "fuck123" → "fuck")
     alpha_only = " ".join(re.findall(r'[a-z]+', raw))
     alpha_norm  = " ".join(re.findall(r'[a-z]+', normalized))
-    return {raw, normalized, alpha_only, alpha_norm}
+    alpha_norm_stripped = " ".join(re.findall(r'[a-z]+', normalized_stripped))
+    return {raw, normalized, normalized_stripped, alpha_only, alpha_norm, alpha_norm_stripped}
+
+_PROFANITY_WORDS = {
+    "fuck", "fack", "fvck", "fuk", "phuck",  # f-word variants
+    "shit", "sheit", "shyt",                   # s-word variants
+    "asshole", "bitch", "biatch", "cunt", "cvnt",
+    "dick", "dik", "cock", "cok", "coq",
+    "pussy", "bastard", "crap", "piss", "slut",
+    "whore", "faggot", "fagot", "retard", "twat",
+    "wank", "bollocks", "nigger", "nigga",
+    "arse", "tits", "boob", "penis", "vagina", "jizz",
+    "prick", "wanker", "motherfucker", "fucker", "bullshit",
+}
+# Minimum length for substring matching (avoids false positives like "ass" in "password")
+_PROFANITY_MIN_SUBSTR = 5
 
 try:
     from better_profanity import profanity as _profanity_checker
     _profanity_checker.load_censor_words()
     def _contains_profanity(text):
+        # Always run our own leet-decode check first (catches all variants)
+        for variant in _profanity_candidates(text):
+            words = re.findall(r'[a-z]+', variant)
+            if any(w in _PROFANITY_WORDS for w in words):
+                return True
+            # Also check substrings for embedded words (e.g. "asshole" → "ass")
+            joined = "".join(words)
+            if any(pw in joined for pw in _PROFANITY_WORDS if len(pw) >= _PROFANITY_MIN_SUBSTR):
+                return True
+        # Also try better_profanity as a secondary check
         return any(_profanity_checker.contains_profanity(v)
                    for v in _profanity_candidates(text))
 except ImportError:
-    _PROFANITY_FALLBACK = {
-        "fuck", "shit", "ass", "bitch", "cunt", "dick", "cock", "pussy",
-        "bastard", "damn", "crap", "piss", "slut", "whore", "nigger",
-        "faggot", "retard", "twat", "wank", "bollocks",
-    }
     def _contains_profanity(text):
         for variant in _profanity_candidates(text):
             words = re.findall(r'[a-z]+', variant)
-            if any(w in _PROFANITY_FALLBACK for w in words):
+            if any(w in _PROFANITY_WORDS for w in words):
+                return True
+            joined = "".join(words)
+            if any(pw in joined for pw in _PROFANITY_WORDS if len(pw) >= _PROFANITY_MIN_SUBSTR):
                 return True
         return False
 
@@ -127,7 +155,7 @@ COMMON_PASSWORDS = {
     "samantha", "secret", "silver", "soccer", "sparky", "spider",
     "success", "superman", "thomas", "thunder", "tiger", "trustno1",
     "whatever", "william", "yankees", "zeppelin", "access", "albert",
-    "andrea", "angel", "apple", "austin", "banana", "biteme",
+    "andrea", "angel", "apple", "austin", "banana",
     "buster", "calvin", "camaro", "carolina", "cheese", "chester",
     "cocacola", "coffee", "dallas", "dolphin", "dolphins", "digital",
     "eagles", "edward", "falcon", "fender", "ferrari", "fishing",
@@ -146,7 +174,7 @@ COMMON_PASSWORDS = {
     "yankee", "yellow", "123321", "654321", "666666", "696969",
     "777777", "888888", "999999", "000000", "112233", "121212",
     "131313", "abcabc", "abcdef", "qazwsx", "qwerty123", "password123",
-    "iloveu", "fuckyou", "asshole", "pussy", "money",
+    "iloveu", "money",
 }
 
 # ─── Keyboard walk patterns ─────────────────────────────────────────────
@@ -156,6 +184,8 @@ KEYBOARD_WALKS = {
     "zxcvbn", "zxcvbnm", "qazwsx", "wsxedc", "rfvtgb",
     "123456", "234567", "345678", "456789", "567890",
     "1qaz2wsx", "qweasd", "qweasdzxc",
+    "1234qwer", "poiuyt", "lkjhgf", "mnbvcxz", "qazxsw",
+    "qweasdzxc", "plmokn", "0987654321", "abcdefgh",
 }
 
 # ─── Leet speak mapping ─────────────────────────────────────────────────
@@ -239,8 +269,103 @@ COMMON_WORDS = {
     "password", "computer", "internet", "network", "server", "system",
     "hacker", "coder", "gaming", "player", "winner", "loser", "champion",
     "correct", "horse", "battery", "staple", "troubador", "electric",
+    # Pet / cute words
+    "fluffy", "buddy", "puppy", "kitty", "bunny", "teddy", "honey",
+    "sunny", "lucky", "happy", "cutie", "fuzzy", "daisy", "molly",
+    "bella", "coco", "luna", "lola", "nala", "zeus", "thor", "rex",
+    "max", "duke", "zoe", "lily", "lucy", "ruby", "rosie", "sadie",
+    # Common first names
+    "carlos", "james", "john", "robert", "michael", "william", "david",
+    "richard", "joseph", "thomas", "charles", "christopher", "daniel",
+    "matthew", "anthony", "donald", "mark", "paul", "steven", "andrew",
+    "kenneth", "joshua", "george", "kevin", "brian", "edward", "ronald",
+    "timothy", "jason", "jeffrey", "ryan", "jacob", "gary", "nicholas",
+    "eric", "jonathan", "stephen", "larry", "justin", "scott", "brandon",
+    "benjamin", "samuel", "raymond", "gregory", "frank", "alexander",
+    "patrick", "raymond", "jack", "dennis", "jerry", "tyler", "aaron",
+    "jose", "adam", "nathan", "henry", "douglas", "zachary", "peter",
+    "walter", "ethan", "jeremy", "harold", "keith", "christian", "roger",
+    "noah", "liam", "mason", "logan", "lucas", "oliver", "aiden",
+    "mary", "patricia", "jennifer", "linda", "barbara", "elizabeth",
+    "susan", "jessica", "sarah", "karen", "lisa", "nancy", "betty",
+    "margaret", "sandra", "ashley", "dorothy", "kimberly", "emily",
+    "donna", "michelle", "carol", "amanda", "melissa", "deborah",
+    "stephanie", "rebecca", "sharon", "laura", "cynthia", "kathleen",
+    "amy", "angela", "shirley", "anna", "brenda", "pamela", "emma",
+    "nicole", "helen", "samantha", "katherine", "christine", "debra",
+    "rachel", "carolyn", "janet", "catherine", "maria", "heather",
+    "diane", "julie", "joyce", "victoria", "olivia", "kelly", "christina",
+    "lauren", "joan", "evelyn", "judith", "megan", "cheryl", "andrea",
+    "hannah", "jacqueline", "martha", "gloria", "teresa", "sara", "janice",
+    "julia", "grace", "judy", "theresa", "beverly", "denise", "marilyn",
+    # Additional common words for compound detection
+    "ninja", "pirate", "rocket", "thunder", "dragon", "shadow", "storm",
+    "blade", "blaze", "bolt", "breeze", "bullet", "burn", "chase",
+    "claw", "clash", "crest", "crush", "dash", "dawn", "dusk", "dust",
+    "edge", "ember", "fade", "fear", "fist", "flame", "flash", "flight",
+    "frost", "fury", "gale", "glow", "grip", "guard", "haze", "heat",
+    "howl", "hunt", "impact", "iron", "jade", "keen", "lance", "leap",
+    "lock", "lore", "lure", "mist", "myth", "neon", "nova", "oath",
+    "peak", "pulse", "pure", "quest", "rage", "raid", "rise", "roar",
+    "rush", "rust", "scar", "seek", "shot", "siege", "silk", "slash",
+    "slice", "slide", "smash", "snap", "soar", "sole", "soul", "spark",
+    "spike", "spin", "split", "spread", "sprint", "squall", "stab",
+    "stalk", "steel", "sting", "strike", "stripe", "swift", "swing",
+    "swipe", "tear", "tide", "toil", "trace", "trail", "trap", "trek",
+    "trial", "trick", "trim", "trip", "troll", "trump", "trust", "twist",
+    "valor", "vault", "veil", "venom", "verse", "vigor", "void", "volt",
+    "wade", "warden", "warp", "wave", "wield", "wild", "wrath", "wreck",
+    "zenith", "zero", "zone",
 }
 
+# ─── Post-Quantum Encryption Reference ──────────────────────────────────
+PQ_ALGORITHMS = {
+    "CRYSTALS-Kyber": {
+        "type": "Key Encapsulation",
+        "standard": "NIST FIPS 203 (ML-KEM)",
+        "classical_bits": 256,
+        "quantum_bits": 128,
+        "resistant": True,
+        "desc": "Post-quantum KEM — NIST standardized 2024",
+        "color": "#39c5cf",
+    },
+    "CRYSTALS-Dilithium": {
+        "type": "Digital Signature",
+        "standard": "NIST FIPS 204 (ML-DSA)",
+        "classical_bits": 256,
+        "quantum_bits": 128,
+        "resistant": True,
+        "desc": "Post-quantum signatures — NIST standardized 2024",
+        "color": "#bc8cff",
+    },
+    "SPHINCS+": {
+        "type": "Hash-based Signature",
+        "standard": "NIST FIPS 205 (SLH-DSA)",
+        "classical_bits": 256,
+        "quantum_bits": 128,
+        "resistant": True,
+        "desc": "Stateless hash-based signatures — NIST standardized 2024",
+        "color": "#39d353",
+    },
+    "RSA-2048": {
+        "type": "Classical Encryption",
+        "standard": "Broken by Shor's Algorithm",
+        "classical_bits": 112,
+        "quantum_bits": 0,
+        "resistant": False,
+        "desc": "Classical encryption — broken by quantum computers",
+        "color": "#f85149",
+    },
+    "AES-256": {
+        "type": "Symmetric Cipher",
+        "standard": "Grover's Algorithm (halves security)",
+        "classical_bits": 256,
+        "quantum_bits": 128,
+        "resistant": True,
+        "desc": "Symmetric — still strong post-quantum (128-bit quantum security)",
+        "color": "#e3b341",
+    },
+}
 
 # ─── Rainbow Table Loader ────────────────────────────────────────────────
 # Loads external wordlists from files next to this script.
@@ -302,10 +427,78 @@ def _load_pkl_wordlists():
 _pkl_passwords, _pkl_words = _load_pkl_wordlists()
 COMMON_PASSWORDS |= _pkl_passwords
 COMMON_WORDS     |= _pkl_words
+
+# ─── Auto-generate leet permutations + name+suffix combos ───────────────
+_LEET_GEN = {'a': ['4','@'], 'e': ['3'], 'i': ['1','!'], 'o': ['0'],
+             's': ['5','$'], 't': ['7'], 'b': ['8'], 'g': ['9'], 'l': ['|']}
+
+def _gen_leet_variants(word):
+    """Generate common leet-speak variants of a word."""
+    variants = set()
+    # Single substitution variants
+    for i, ch in enumerate(word):
+        if ch in _LEET_GEN:
+            for sub in _LEET_GEN[ch]:
+                variants.add(word[:i] + sub + word[i+1:])
+    # Double substitution for short words
+    if len(word) <= 8:
+        chars = list(word)
+        for i, ch in enumerate(chars):
+            if ch in _LEET_GEN:
+                for sub in _LEET_GEN[ch]:
+                    w2 = word[:i] + sub + word[i+1:]
+                    for j, ch2 in enumerate(w2):
+                        if ch2 in _LEET_GEN and j != i:
+                            for sub2 in _LEET_GEN[ch2]:
+                                variants.add(w2[:j] + sub2 + w2[j+1:])
+    return variants
+
+# Generate leet variants for all words and add to password table
+_leet_variants = set()
+for _w in list(COMMON_WORDS):
+    _leet_variants.update(_gen_leet_variants(_w))
+COMMON_PASSWORDS |= _leet_variants
+
+# Generate name+suffix combos for top names
+_TOP_NAMES = [
+    "carlos", "james", "john", "robert", "michael", "william", "david",
+    "richard", "joseph", "thomas", "charles", "christopher", "daniel",
+    "matthew", "anthony", "donald", "mark", "paul", "steven", "andrew",
+    "jennifer", "jessica", "ashley", "sarah", "karen", "lisa", "nancy",
+    "emily", "donna", "michelle", "amanda", "melissa", "stephanie",
+    "fluffy", "buddy", "puppy", "dragon", "shadow", "hunter", "master",
+]
+_SUFFIXES = [
+    "123", "1234", "12345", "1", "2", "99", "00", "007", "!", "1!", "2!",
+    "2020", "2021", "2022", "2023", "2024", "2025",
+    "@123", "#1", "111", "321", "456", "777", "!23", "pass",
+]
+_name_combos = set()
+for _n in _TOP_NAMES:
+    for _s in _SUFFIXES:
+        _name_combos.add(_n + _s)
+        _name_combos.add(_n.capitalize() + _s)
+        _name_combos.add(_n.upper() + _s)
+    # Also add bare name
+    COMMON_PASSWORDS.add(_n)
+    COMMON_PASSWORDS.add(_n.capitalize())
+    COMMON_WORDS.add(_n)
+COMMON_PASSWORDS |= _name_combos
+
 DICTIONARY_SIZE   = max(DICTIONARY_SIZE, len(COMMON_WORDS))
 _pw_count  = len(COMMON_PASSWORDS)
 _wd_count  = len(COMMON_WORDS)
-print(f"[Wordlist] Final: {_pw_count:,} passwords, {_wd_count:,} dictionary words")
+print(f"[Wordlist] Final: {_pw_count:,} passwords, {_wd_count:,} dictionary words (incl. {len(_leet_variants):,} leet variants + {len(_name_combos):,} name combos)")
+
+# ─── Kid-safe display list (NO profanity shown in animation) ────────────────
+# COMMON_PASSWORDS is used for DETECTION only.
+# The animation scrolls _DISPLAY_PASSWORDS — a clean subset safe for children.
+_DISPLAY_PASSWORDS = {
+    w for w in COMMON_PASSWORDS
+    if not _contains_profanity(w)
+    and all(c.isalnum() or c in "-_." for c in w)
+    and len(w) >= 4
+}
 
 
 def _deleet(password):
@@ -804,6 +997,14 @@ class PasswordCrackerApp:
                                        fg=C["dim"], bg=C["bg"])
         self.verdict_label.pack(pady=(0, 2))
 
+        # ── CRACKED PASSWORD DISPLAY ──
+        self.result_password_label = tk.Label(
+            self.results_frame, text="",
+            font=("Courier", 26, "bold"),
+            fg=C["green"], bg=C["bg"],
+            relief="flat")
+        self.result_password_label.pack(pady=(0, 4))
+
         self.time_label = tk.Label(self.results_frame, text="",
                                     font=("Courier", 15), fg=C["dim"], bg=C["bg"])
         self.time_label.pack(pady=(0, 2))
@@ -995,6 +1196,7 @@ class PasswordCrackerApp:
             self.tip_label.config(
                 text="Tip: A strong password doesn't need bad words. Try mixing words, numbers, and symbols!",
                 fg=C["yellow"])
+            self.result_password_label.config(text="")
             self.clear_meter()
             return
         if self.cracking:
@@ -1007,6 +1209,7 @@ class PasswordCrackerApp:
 
         # Clear previous results
         self.verdict_label.config(text="")
+        self.result_password_label.config(text="")
         self.time_label.config(text="")
         self.message_label.config(text="")
         self.tip_label.config(text="")
@@ -1065,7 +1268,7 @@ class PasswordCrackerApp:
                                   "keyboard_walk", "sequential")
 
         # Build a pool of fake "table entries" scrolling past
-        rt_pool = list(COMMON_PASSWORDS)
+        rt_pool = list(_DISPLAY_PASSWORDS)
         random.shuffle(rt_pool)
         rt_pool = rt_pool[:300] if len(rt_pool) > 300 else rt_pool
         rt_idx = [0]
@@ -1271,6 +1474,7 @@ class PasswordCrackerApp:
 
         attempts = 0
         frame = 0
+        self._animation_done = False
 
         while time.time() - start_time < anim_duration and not self.cancel_crack:
             elapsed = time.time() - start_time
@@ -1306,6 +1510,11 @@ class PasswordCrackerApp:
             time.sleep(0.05)  # ~20fps
 
         # ── FINAL RESULT ──
+        self._animation_done = True
+        # Small sleep so any pending root.after animation frames flush before
+        # the result is rendered — prevents stale scramble frame overwriting result
+        import time as _t; _t.sleep(0.12)
+
         if is_timeout:
             final_display = []
             for i in range(pw_len):
@@ -1318,8 +1527,10 @@ class PasswordCrackerApp:
                             strength_label, strength_color, message, tip,
                             attack_label)
         else:
+            # Force all chars to password — never show scrambled chars in result
+            final_display = list(password)
             self.root.after(0, self.show_cracked_result,
-                            list(password), pw_len, crack_seconds,
+                            final_display, pw_len, crack_seconds,
                             strength_label, strength_color, message, tip,
                             attack_label)
 
@@ -1363,14 +1574,24 @@ class PasswordCrackerApp:
                     x, y, text=display[i], fill=col,
                     font=("Courier", 20, "bold"))
 
-        # Raining characters effect at top
-        for _ in range(8):
-            rx = random.randint(10, max(canvas_w - 10, 20))
-            ry = random.randint(2, 25)
-            rc = random.choice(CRACK_CHARS)
+        # Matrix rain columns — full-width falling effect
+        num_cols = max(8, canvas_w // 18)
+        for col in range(num_cols):
+            cx = 9 + col * (canvas_w // num_cols)
+            # Head character (bright green)
+            head_y = random.randint(2, 20)
             self.crack_canvas.create_text(
-                rx, ry, text=rc, fill=C["matrix"],
-                font=("Courier", 9), stipple="gray25")
+                cx, head_y, text=random.choice(CRACK_CHARS),
+                fill=C["matrix"], font=("Courier", 10, "bold"))
+            # Trail (dimming)
+            for trail in range(1, 4):
+                ty = head_y - trail * 10
+                if ty > 0:
+                    alpha = ["gray50", "gray25", "gray12"][trail - 1]
+                    self.crack_canvas.create_text(
+                        cx, ty, text=random.choice(CRACK_CHARS),
+                        fill=C["green_dim"], font=("Courier", 9),
+                        stipple=alpha)
 
         # Progress bar
         self.progress_canvas.delete("all")
@@ -1422,10 +1643,15 @@ class PasswordCrackerApp:
 
         self.status_label.config(text="Password decoded!", fg=color)
 
+        # Ensure display is always the real password chars (never scrambled)
+        pw_text = "".join(str(c) for c in display)
         time_str = format_time(crack_seconds)
         self.verdict_label.config(text=label, fg=color)
+        self.result_password_label.config(
+            text=f"► {pw_text} ◄",
+            fg=C["green"] if color == C["red"] else color)
         self.time_label.config(
-            text=f"Cracked via {attack_label} in: {time_str}",
+            text=f"Cracked '{pw_text}' via {attack_label} in: {time_str}",
             fg=color)
         self.message_label.config(text=message, fg=C["white"])
         self.tip_label.config(text=f"Tip: {tip}", fg=C["yellow"])
@@ -1473,10 +1699,16 @@ class PasswordCrackerApp:
         self.status_label.config(
             text="The cracker couldn't break your password!", fg=C["purple"])
 
+        # Show partial reveal for strong passwords
+        pw_text = "".join(display)  # display has actual chars for any revealed, "?" for rest
+        masked = pw_text[:2] + "*" * max(0, pw_len - 2) if pw_len > 2 else "?" * pw_len
         time_str = format_time(crack_seconds)
         self.verdict_label.config(text=label, fg=color)
+        self.result_password_label.config(
+            text=f"🔒 {masked}  (cracker gave up!)",
+            fg=C["purple"])
         self.time_label.config(
-            text=f"Estimated time to crack ({attack_label}): {time_str}",
+            text=f"Estimated crack time ({attack_label}): {time_str}",
             fg=color)
         self.message_label.config(text=message, fg=C["white"])
         self.tip_label.config(text=f"Tip: {tip}", fg=C["yellow"])

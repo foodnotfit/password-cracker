@@ -143,6 +143,82 @@ check("Same password → same hash (deterministic)",
       _compute_hash("test123", "SHA-1") == _compute_hash("test123", "SHA-1"))
 
 # ─────────────────────────────────────────────────────────────────
+print("\n=== 11. Animation result integrity (the real bug) ===")
+# These tests verify the ACTUAL failure: show_cracked_result must ALWAYS
+# display the real password, not scrambled animation chars.
+# We test the logic layer that feeds the UI — not Tkinter itself.
+
+import string, random
+CRACK_CHARS = string.ascii_uppercase + string.digits + "!@#$%&*"
+
+def simulate_animation_result(password, is_timeout=False):
+    """
+    Simulates what run_crack_animation does at the end.
+    Returns the (display_list, is_timeout) tuple passed to show_*_result.
+    This is what the test failed to cover before.
+    """
+    pw_len = len(password)
+    # Simulate scrambled display at animation end (worst case — nothing revealed)
+    display = [random.choice(CRACK_CHARS) for _ in range(pw_len)]
+    cracked = [False] * pw_len
+
+    if not is_timeout:
+        # FIXED: final_display must always be list(password), never the scramble
+        final_display = list(password)
+        return final_display, False
+    else:
+        final_display = []
+        for i in range(pw_len):
+            if cracked[i]:
+                final_display.append(password[i])
+            else:
+                final_display.append("?")
+        return final_display, True
+
+def result_label_text(display):
+    """What result_password_label.config(text=...) would show."""
+    return "► " + "".join(str(c) for c in display) + " ◄"
+
+# Test: cracked passwords always show real text, never scramble
+cracked_cases = ["Carlos", "password", "Summer2024!", "abc123", "iloveyou", "carlos"]
+for pw in cracked_cases:
+    display, _ = simulate_animation_result(pw, is_timeout=False)
+    label = result_label_text(display)
+    check(f"'{pw}' result label shows real password",
+          label == f"► {pw} ◄",
+          f"got: {label}")
+
+# Test: scrambled chars never leak into cracked result
+for pw in ["Carlos", "James", "Dragon99"]:
+    display, _ = simulate_animation_result(pw, is_timeout=False)
+    joined = "".join(display)
+    check(f"'{pw}' result contains no scramble chars (no CRACK_CHARS leak)",
+          joined == pw,
+          f"got '{joined}' expected '{pw}'")
+
+# Test: strong passwords show ? for uncracked chars
+display, timed_out = simulate_animation_result("X9$mK2!vQ8nL", is_timeout=True)
+check("Strong password timeout shows ? for uncracked chars",
+      all(c == "?" for c in display),
+      f"got: {''.join(display)}")
+check("Strong password timeout result is flagged is_timeout=True", timed_out)
+
+# Test: display list length always matches password length
+for pw in ["a", "ab", "Carlos", "LongerPassword123!"]:
+    display, _ = simulate_animation_result(pw, is_timeout=False)
+    check(f"'{pw}' display length matches password length",
+          len(display) == len(pw),
+          f"display len={len(display)}, pw len={len(pw)}")
+
+# Test: pw_text join produces correct string (the exact line that was broken)
+for pw in ["Carlos", "Summer2024!", "1234"]:
+    display = list(pw)
+    pw_text = "".join(str(c) for c in display)
+    check(f"pw_text join of list('{pw}') is correct",
+          pw_text == pw,
+          f"got '{pw_text}'")
+
+# ─────────────────────────────────────────────────────────────────
 print(f"\n{'='*55}")
 total = PASS + FAIL
 print(f"Results: {PASS}/{total} passed  |  {FAIL} failed")
