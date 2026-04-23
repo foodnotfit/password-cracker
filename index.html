@@ -32,6 +32,8 @@ body{background:#0d1117;color:#f0f6fc;font-family:system-ui,-apple-system,BlinkM
 .btn-show{background:#21262d;color:#8b949e;border:2px solid #30363d}
 .btn-crack{background:linear-gradient(135deg,#b91c1c,#f85149);color:#fff;min-width:130px;font-size:1.1rem}
 .btn-reset{background:#21262d;color:#8b949e;border:2px solid #30363d}
+.btn-timer{background:#21262d;color:#58a6ff;border:2px solid #1f6feb}
+.btn-timer.running{background:#0d2136;color:#f85149;border-color:#f85149}
 
 /* LIVE STATS */
 .stats-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
@@ -567,6 +569,18 @@ footer{text-align:center;padding:14px;color:#30363d;font-size:0.8rem;background:
   <!-- RESET BUTTON — always visible after crack, outside results scroll area -->
   <div id="reset-btn-wrap" style="display:none;text-align:center;margin:16px 0 8px">
     <button class="btn btn-reset" onclick="resetApp()">🔄 Try Another Password</button>
+    <div style="margin-top:10px">
+      <button id="timer-btn" class="btn btn-timer" onclick="toggleTimer()">⏱ Start 5 Min Timer</button>
+      <div id="timer-display" style="display:none;margin-top:8px;font-size:2rem;font-weight:700;font-family:monospace;color:#58a6ff;letter-spacing:3px;text-shadow:0 0 12px rgba(88,166,255,0.5)">05:00</div>
+    </div>
+  </div>
+
+  <!-- FULL-SCREEN THANK YOU OVERLAY -->
+  <div id="thankyou-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#0d1117;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px">
+    <div style="font-size:5rem;margin-bottom:24px">⚛️</div>
+    <h1 style="font-size:2.4rem;font-weight:800;color:#f0f6fc;margin:0 0 16px;line-height:1.2">Thanks for learning about<br>Password Security!</h1>
+    <p style="font-size:1.15rem;color:#8b949e;max-width:540px;line-height:1.6;margin:0 0 36px">You explored how attackers crack passwords — and how to defend against them. Stay secure!</p>
+    <button class="btn" style="background:linear-gradient(135deg,#1f6feb,#58a6ff);color:#fff;font-size:1.1rem;padding:14px 32px" onclick="dismissOverlay()">Start Over 🔄</button>
   </div>
 
 </div><!-- /main -->
@@ -1750,6 +1764,61 @@ function buildStrengthMeter(seconds, activeColor) {
     div.title = seg.label;
     track.appendChild(div);
   });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 5-MINUTE TIMER
+// ═══════════════════════════════════════════════════════════════
+
+let timerInterval = null;
+let timerSeconds = 300;
+
+function toggleTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    timerSeconds = 300;
+    const btn = document.getElementById('timer-btn');
+    btn.textContent = '⏱ Start 5 Min Timer';
+    btn.classList.remove('running');
+    const display = document.getElementById('timer-display');
+    display.style.display = 'none';
+    display.textContent = '05:00';
+  } else {
+    timerSeconds = 300;
+    const btn = document.getElementById('timer-btn');
+    btn.textContent = '⏹ Cancel Timer';
+    btn.classList.add('running');
+    const display = document.getElementById('timer-display');
+    display.style.display = 'block';
+    display.textContent = '05:00';
+    timerInterval = setInterval(() => {
+      timerSeconds--;
+      const m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+      const s = String(timerSeconds % 60).padStart(2, '0');
+      display.textContent = m + ':' + s;
+      if (timerSeconds <= 0) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        showThankYouOverlay();
+      }
+    }, 1000);
+  }
+}
+
+function showThankYouOverlay() {
+  const overlay = document.getElementById('thankyou-overlay');
+  overlay.style.display = 'flex';
+  const btn = document.getElementById('timer-btn');
+  btn.textContent = '⏱ Start 5 Min Timer';
+  btn.classList.remove('running');
+  document.getElementById('timer-display').style.display = 'none';
+  document.getElementById('timer-display').textContent = '05:00';
+}
+
+function dismissOverlay() {
+  document.getElementById('thankyou-overlay').style.display = 'none';
+  resetApp();
 }
 
 function resetApp() {
