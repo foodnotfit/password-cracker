@@ -176,9 +176,64 @@ body{background:#0d1117;color:#f0f6fc;font-family:system-ui,-apple-system,BlinkM
 #profanity-notice.visible{display:block}
 
 footer{text-align:center;padding:14px;color:#30363d;font-size:0.8rem;background:#0d1117;border-top:1px solid #161b22}
+
+/* SPLASH SCREEN */
+#splash-screen{position:fixed;inset:0;z-index:10000;background:radial-gradient(ellipse at center,#161b22 0%,#0d1117 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;overflow:hidden}
+#splash-screen.hidden{display:none}
+#splash-stars{position:absolute;inset:0;z-index:0}
+#splash-content{position:relative;z-index:1;max-width:760px;animation:splashFadeIn 0.6s ease}
+@keyframes splashFadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+#splash-badge{display:inline-block;background:rgba(88,166,255,0.12);color:#58a6ff;border:2px solid #58a6ff;border-radius:999px;padding:6px 18px;font-weight:800;font-size:0.85rem;letter-spacing:2px;margin-bottom:18px;text-transform:uppercase}
+#splash-title{font-size:clamp(2.6rem,6vw,4.5rem);font-weight:900;line-height:1.1;background:linear-gradient(90deg,#f85149,#f0883e,#e3b341,#39d353,#39c5cf,#58a6ff,#bc8cff,#f85149);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:rainbowShift 4s linear infinite;margin-bottom:14px;letter-spacing:2px}
+#splash-subtitle{font-size:clamp(1.1rem,2.4vw,1.6rem);color:#f0f6fc;font-weight:700;margin-bottom:16px}
+#splash-challenge{font-size:1.05rem;color:#8b949e;line-height:1.7;margin:0 auto 28px;max-width:600px}
+#splash-challenge strong{color:#e3b341}
+.splash-bullets{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-bottom:30px}
+.splash-bullet{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:10px 14px;font-size:0.85rem;color:#8b949e;display:flex;align-items:center;gap:6px}
+.splash-bullet b{color:#f0f6fc}
+#splash-continue{font-size:1.4rem;font-weight:900;padding:18px 48px;border-radius:14px;background:linear-gradient(135deg,#1f6feb,#58a6ff);color:#fff;border:none;cursor:pointer;letter-spacing:2px;box-shadow:0 6px 20px rgba(88,166,255,0.4);transition:all 0.2s}
+#splash-continue:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(88,166,255,0.55);filter:brightness(1.1)}
+#splash-continue:active{transform:translateY(-1px)}
+#splash-timer-note{margin-top:18px;color:#8b949e;font-size:0.85rem}
+#splash-timer-note b{color:#f85149}
+
+/* SESSION BAR (timer + reset to splash, sticky at top of main) */
+#session-bar{display:none;align-items:center;justify-content:space-between;gap:14px;background:#161b22;border:2px solid #30363d;border-radius:14px;padding:12px 18px;margin-bottom:18px;flex-wrap:wrap}
+#session-bar.visible{display:flex}
+#session-bar .session-info{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+#session-timer-pill{display:flex;align-items:center;gap:10px;padding:8px 14px;background:#0d1117;border:2px solid #1f6feb;border-radius:10px;font-family:monospace;font-weight:800;font-size:1.3rem;color:#58a6ff;letter-spacing:3px;text-shadow:0 0 10px rgba(88,166,255,0.4);min-width:120px;justify-content:center}
+#session-timer-pill.warning{border-color:#e3b341;color:#e3b341;text-shadow:0 0 10px rgba(227,179,65,0.4)}
+#session-timer-pill.critical{border-color:#f85149;color:#f85149;text-shadow:0 0 10px rgba(248,81,73,0.5);animation:pulse 1s infinite}
+#session-bar .session-label{font-size:0.85rem;color:#8b949e;font-weight:700;letter-spacing:1px}
+.btn-splash-reset{background:#21262d;color:#8b949e;border:2px solid #30363d}
+.btn-splash-reset:hover{border-color:#f85149;color:#f85149}
+
+/* IN-APP RESET BUTTONS LAYOUT */
+.reset-buttons-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+
 </style>
 </head>
 <body>
+
+<!-- SPLASH SCREEN -->
+<div id="splash-screen">
+  <canvas id="splash-stars"></canvas>
+  <div id="splash-content">
+    <div id="splash-badge">⚛️ DARPA Family Day 2026</div>
+    <h1 id="splash-title">🔓 PASSWORD CRACKER</h1>
+    <div id="splash-subtitle">Welcome, future cyber-defender!</div>
+    <p id="splash-challenge">
+      Think your password is unbreakable? <strong>We dare you to try!</strong> Type any password you'd like and watch a real cracker try to break it — using rainbow tables, brute force, and even quantum attacks. Then learn how to make passwords the bad guys can't touch.
+    </p>
+    <div class="splash-bullets">
+      <div class="splash-bullet">🔑 <b>Try a password</b></div>
+      <div class="splash-bullet">⚡ <b>Watch it get cracked</b></div>
+      <div class="splash-bullet">🛡️ <b>Learn to defend</b></div>
+    </div>
+    <button id="splash-continue" onclick="startSession()">CONTINUE →</button>
+    <div id="splash-timer-note">You'll have <b>5 minutes</b> to test as many passwords as you want!</div>
+  </div>
+</div>
 
 <!-- HEADER -->
 <div id="header">
@@ -192,6 +247,15 @@ footer{text-align:center;padding:14px;color:#30363d;font-size:0.8rem;background:
 
 <!-- MAIN -->
 <div id="main">
+
+  <!-- SESSION BAR (visible while 5-min session is active) -->
+  <div id="session-bar">
+    <div class="session-info">
+      <span class="session-label">⏱ SESSION TIME LEFT</span>
+      <div id="session-timer-pill">05:00</div>
+    </div>
+    <button class="btn btn-splash-reset" onclick="resetToSplash()">🏠 Reset to Splash</button>
+  </div>
 
   <!-- PROFANITY NOTICE -->
   <div id="profanity-notice">⚠️ Let's keep it clean for Family Day! Please try a different password.</div>
@@ -566,21 +630,21 @@ footer{text-align:center;padding:14px;color:#30363d;font-size:0.8rem;background:
 
   </div>
 
-  <!-- RESET BUTTON — always visible after crack, outside results scroll area -->
+  <!-- RESET BUTTONS — visible after crack -->
   <div id="reset-btn-wrap" style="display:none;text-align:center;margin:16px 0 8px">
-    <button class="btn btn-reset" onclick="resetApp()">🔄 Try Another Password</button>
-    <div style="margin-top:10px">
-      <button id="timer-btn" class="btn btn-timer" onclick="toggleTimer()">⏱ Start 5 Min Timer</button>
-      <div id="timer-display" style="display:none;margin-top:8px;font-size:2rem;font-weight:700;font-family:monospace;color:#58a6ff;letter-spacing:3px;text-shadow:0 0 12px rgba(88,166,255,0.5)">05:00</div>
+    <div class="reset-buttons-row">
+      <button class="btn btn-reset" onclick="tryNewPassword()">🔄 Try a New Password</button>
+      <button class="btn btn-splash-reset" onclick="resetToSplash()">🏠 Reset to Splash</button>
     </div>
   </div>
 
-  <!-- FULL-SCREEN THANK YOU OVERLAY -->
-  <div id="thankyou-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#0d1117;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px">
+  <!-- FULL-SCREEN THANK YOU OVERLAY (shown when 5-min timer expires) -->
+  <div id="thankyou-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:radial-gradient(ellipse at center,#161b22 0%,#0d1117 70%);flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px">
     <div style="font-size:5rem;margin-bottom:24px">⚛️</div>
     <h1 style="font-size:2.4rem;font-weight:800;color:#f0f6fc;margin:0 0 16px;line-height:1.2">Thanks for learning about<br>Password Security!</h1>
-    <p style="font-size:1.15rem;color:#8b949e;max-width:540px;line-height:1.6;margin:0 0 36px">You explored how attackers crack passwords — and how to defend against them. Stay secure!</p>
-    <button class="btn" style="background:linear-gradient(135deg,#1f6feb,#58a6ff);color:#fff;font-size:1.1rem;padding:14px 32px" onclick="dismissOverlay()">Start Over 🔄</button>
+    <p style="font-size:1.15rem;color:#8b949e;max-width:540px;line-height:1.6;margin:0 0 28px">You explored how attackers crack passwords — and how to defend against them. Use long passphrases, never reuse passwords, and use a password manager. Stay secure!</p>
+    <div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:14px 22px;margin-bottom:32px;color:#58a6ff;font-weight:700;font-size:0.95rem">⚛️ DARPA Family Day 2026</div>
+    <button class="btn" style="background:linear-gradient(135deg,#1f6feb,#58a6ff);color:#fff;font-size:1.1rem;padding:14px 32px" onclick="dismissOverlay()">🏠 Back to Splash</button>
   </div>
 
 </div><!-- /main -->
@@ -1767,58 +1831,88 @@ function buildStrengthMeter(seconds, activeColor) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 5-MINUTE TIMER
+// SESSION FLOW: SPLASH → 5-MIN TIMER → THANK YOU → SPLASH
 // ═══════════════════════════════════════════════════════════════
 
 let timerInterval = null;
-let timerSeconds = 300;
+let timerSeconds  = 300;
+const SESSION_LENGTH_SEC = 300;
 
-function toggleTimer() {
-  if (timerInterval) {
-    clearInterval(timerInterval);
-    timerInterval = null;
-    timerSeconds = 300;
-    const btn = document.getElementById('timer-btn');
-    btn.textContent = '⏱ Start 5 Min Timer';
-    btn.classList.remove('running');
-    const display = document.getElementById('timer-display');
-    display.style.display = 'none';
-    display.textContent = '05:00';
-  } else {
-    timerSeconds = 300;
-    const btn = document.getElementById('timer-btn');
-    btn.textContent = '⏹ Cancel Timer';
-    btn.classList.add('running');
-    const display = document.getElementById('timer-display');
-    display.style.display = 'block';
-    display.textContent = '05:00';
-    timerInterval = setInterval(() => {
-      timerSeconds--;
-      const m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
-      const s = String(timerSeconds % 60).padStart(2, '0');
-      display.textContent = m + ':' + s;
-      if (timerSeconds <= 0) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-        showThankYouOverlay();
-      }
-    }, 1000);
-  }
+function formatTimer(s) {
+  if (s < 0) s = 0;
+  const m = String(Math.floor(s / 60)).padStart(2, '0');
+  const sec = String(s % 60).padStart(2, '0');
+  return m + ':' + sec;
+}
+
+function updateTimerPill() {
+  const pill = document.getElementById('session-timer-pill');
+  if (!pill) return;
+  pill.textContent = formatTimer(timerSeconds);
+  pill.classList.remove('warning', 'critical');
+  if (timerSeconds <= 30) pill.classList.add('critical');
+  else if (timerSeconds <= 60) pill.classList.add('warning');
+}
+
+function startSessionTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  timerSeconds = SESSION_LENGTH_SEC;
+  updateTimerPill();
+  timerInterval = setInterval(() => {
+    timerSeconds--;
+    updateTimerPill();
+    if (timerSeconds <= 0) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      showThankYouOverlay();
+    }
+  }, 1000);
+}
+
+function stopSessionTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  timerSeconds = SESSION_LENGTH_SEC;
+  updateTimerPill();
+}
+
+// Splash → app: Continue button
+function startSession() {
+  document.getElementById('splash-screen').classList.add('hidden');
+  document.getElementById('session-bar').classList.add('visible');
+  document.getElementById('thankyou-overlay').style.display = 'none';
+  resetApp();
+  startSessionTimer();
+  const input = document.getElementById('pw-input');
+  if (input) { input.disabled = false; input.focus(); }
+}
+
+// Hard reset: stop timer, clear app, return to splash
+function resetToSplash() {
+  stopSessionTimer();
+  resetApp();
+  document.getElementById('session-bar').classList.remove('visible');
+  document.getElementById('thankyou-overlay').style.display = 'none';
+  document.getElementById('splash-screen').classList.remove('hidden');
+}
+
+// Soft reset: clear app for a new password attempt, keep timer running
+function tryNewPassword() {
+  resetApp();
+  const input = document.getElementById('pw-input');
+  if (input) { input.disabled = false; input.focus(); }
 }
 
 function showThankYouOverlay() {
   const overlay = document.getElementById('thankyou-overlay');
   overlay.style.display = 'flex';
-  const btn = document.getElementById('timer-btn');
-  btn.textContent = '⏱ Start 5 Min Timer';
-  btn.classList.remove('running');
-  document.getElementById('timer-display').style.display = 'none';
-  document.getElementById('timer-display').textContent = '05:00';
+  // hide session bar — session is over
+  document.getElementById('session-bar').classList.remove('visible');
+  stopSessionTimer();
 }
 
 function dismissOverlay() {
   document.getElementById('thankyou-overlay').style.display = 'none';
-  resetApp();
+  resetToSplash();
 }
 
 function resetApp() {
@@ -1894,14 +1988,56 @@ function initStarfield() {
 // INIT
 // ═══════════════════════════════════════════════════════════════
 
+function initSplashStars() {
+  const canvas = document.getElementById("splash-stars");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const stars = [];
+  function resize() {
+    canvas.width  = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+  }
+  resize();
+  window.addEventListener("resize", resize);
+  for (let i = 0; i < 220; i++) {
+    stars.push({
+      x: Math.random(),
+      y: Math.random(),
+      r: Math.random() * 1.6 + 0.3,
+      opacity: Math.random() * 0.7 + 0.15,
+      speed: Math.random() * 0.4 + 0.05,
+      phase: Math.random() * Math.PI * 2,
+    });
+  }
+  function draw(t) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    stars.forEach(s => {
+      const twinkle = 0.5 + 0.5 * Math.sin(t * 0.001 * s.speed + s.phase);
+      ctx.beginPath();
+      ctx.arc(s.x * canvas.width, s.y * canvas.height, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${s.opacity * twinkle})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   initStarfield();
+  initSplashStars();
   updateAlgoBars();
 
   const input = document.getElementById("pw-input");
   input.addEventListener("input", updateLiveStats);
   input.addEventListener("keydown", e => { if (e.key === "Enter" && !document.getElementById("crack-btn").disabled) startCrack(); });
-  input.focus();
+
+  // Allow Enter on splash to start session
+  document.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !document.getElementById("splash-screen").classList.contains("hidden")) {
+      startSession();
+    }
+  });
 });
 </script>
 </body>
